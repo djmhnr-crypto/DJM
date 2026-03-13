@@ -44,7 +44,7 @@ function getHTML(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FieldVibe - Dispatch</title>
+  <title>DJM Heating and Refrigeration</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
@@ -100,7 +100,7 @@ function getHTML(): string {
     <div class="flex items-center justify-center h-screen">
       <div class="text-center">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-        <p class="text-gray-500">Loading FieldVibe...</p>
+        <p class="text-gray-500">Loading DJM...</p>
       </div>
     </div>
   </div>
@@ -279,8 +279,8 @@ function getHTML(): string {
             <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
               <i class="fas fa-truck text-3xl text-indigo-600"></i>
             </div>
-            <h1 class="text-3xl font-bold text-white">FieldVibe</h1>
-            <p class="text-indigo-200 mt-1">Technician Dispatch Management</p>
+            <h1 class="text-3xl font-bold text-white">DJM Heating</h1>
+            <p class="text-indigo-200 mt-1">DJM Heating and Refrigeration</p>
           </div>
           <div class="bg-white rounded-2xl shadow-2xl p-8">
             <h2 class="text-xl font-semibold text-gray-800 mb-6">Sign In</h2>
@@ -290,7 +290,7 @@ function getHTML(): string {
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                 <div class="relative">
                   <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                  <input id="login-email" type="email" placeholder="you@fieldvibe.com" required
+                  <input id="login-email" type="email" placeholder="you@djmheating.com" required
                     class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
                 </div>
               </div>
@@ -384,8 +384,8 @@ function getHTML(): string {
                 <i class="fas fa-truck text-indigo-600 text-lg"></i>
               </div>
               <div>
-                <h1 class="text-white font-bold text-base leading-tight">FieldVibe</h1>
-                <p class="text-indigo-300 text-xs">Dispatch</p>
+                <h1 class="text-white font-bold text-base leading-tight">DJM Heating</h1>
+                <p class="text-indigo-300 text-xs">& Refrigeration</p>
               </div>
             </div>
           </div>
@@ -1451,7 +1451,7 @@ function getHTML(): string {
               + escHtml(t.name) + (t.specialty ? ' (' + t.specialty + ')' : '') + '</option>';
           }).join('');
 
-      var serviceTypes = ['HVAC','Electrical','Plumbing','Inspection','Installation','Repair','Maintenance'];
+      var serviceTypes = ['HVAC','Refrigeration','Electrical','Plumbing','Inspection','Installation','Repair','Maintenance'];
       var serviceOpts  = '<option value="">— Select Type —</option>'
         + serviceTypes.map(function(s){
             return '<option value="' + s + '"' + (job && job.serviceType===s ? ' selected' : '') + '>' + s + '</option>';
@@ -1486,7 +1486,7 @@ function getHTML(): string {
         // 제목 (col-span-2)
         +     '<div style="grid-column:1/-1;">'
         +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Job Title *</label>'
-        +       '<input id="jf-title" type="text" required placeholder="e.g., HVAC Maintenance" value="' + escHtml((job && job.title)||'') + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
+        +       '<input id="jf-title" type="text" required placeholder="e.g., Refrigeration Service" value="' + escHtml((job && job.title)||'') + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
         +     '</div>'
         // 시작
         +     '<div>'
@@ -1732,7 +1732,7 @@ function getHTML(): string {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
-                <input id="uf-email" type="email" required placeholder="john@fieldvibe.com"
+                <input id="uf-email" type="email" required placeholder="john@djmheating.com"
                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
               <div>
@@ -1743,7 +1743,7 @@ function getHTML(): string {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Specialty</label>
                 <select id="uf-specialty" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  \${['HVAC','Electrical','Plumbing','General','Inspection'].map(s => \`<option value="\${s}">\${s}</option>\`).join('')}
+                  \${['HVAC','Refrigeration','Electrical','Plumbing','General','Inspection'].map(s => \`<option value="\${s}">\${s}</option>\`).join('')}
                 </select>
               </div>
               <div>
