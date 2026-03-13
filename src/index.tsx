@@ -561,84 +561,212 @@ function getHTML(): string {
 
     // =================== CALENDAR VIEW ===================
     function renderCalendar() {
-      const today = dayjs(state.calendarDate);
-      const startOfWeek = today.startOf('week');
-      const days = Array.from({length:7}, (_,i) => startOfWeek.add(i,'day'));
-      const hours = Array.from({length:12}, (_,i) => i + 7); // 7am ~ 6pm
+      var today       = dayjs(state.calendarDate);
+      var startOfWeek = today.startOf('week');
+      var days        = [];
+      for (var di = 0; di < 7; di++) days.push(startOfWeek.add(di, 'day'));
 
-      // isSameOrBefore 없이 단순 문자열 비교로 주 범위 필터
-      const weekStart = days[0].format('YYYY-MM-DD');
-      const weekEnd   = days[6].format('YYYY-MM-DD');
-      const weekJobs  = state.jobs.filter(j => {
-        const d = dayjs(j.scheduledStart).format('YYYY-MM-DD');
+      // ─── 시간 범위 상수 ───────────────────────────────────
+      var HOUR_START  = 7;    // 07:00 표시 시작
+      var HOUR_END    = 20;   // 20:00 까지 표시 (12→13시간)
+      var TOTAL_HOURS = HOUR_END - HOUR_START;  // 13
+      var ROW_H       = 60;   // 1시간 = 60px (계산하기 쉽게 60으로)
+      var GRID_H      = TOTAL_HOURS * ROW_H;    // 780px
+
+      // ─── 이번 주 job 필터 ────────────────────────────────
+      var weekStart = days[0].format('YYYY-MM-DD');
+      var weekEnd   = days[6].format('YYYY-MM-DD');
+      var weekJobs  = (state.jobs || []).filter(function(j) {
+        if (!j.scheduledStart) return false;
+        var d = j.scheduledStart.substring(0, 10); // "YYYY-MM-DD" fast slice
         return d >= weekStart && d <= weekEnd;
       });
 
-      // grid-template-columns 값 (inline style 사용 - Tailwind JIT 미적용 환경 대응)
-      const gridCols = '52px repeat(7, minmax(0, 1fr))';
+      var gridCols = '52px repeat(7, minmax(0, 1fr))';
 
-      // 요일 헤더
-      const dayHeaders = days.map(d => {
-        const isToday = d.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+      // ─── 요일 헤더 ──────────────────────────────────────
+      var todayStr = dayjs().format('YYYY-MM-DD');
+      var dayHeaders = days.map(function(d) {
+        var dStr    = d.format('YYYY-MM-DD');
+        var isToday = dStr === todayStr;
         return '<div style="text-align:center;padding:8px 4px;border-right:1px solid #f3f4f6;min-width:0;">'
           + '<p style="font-size:11px;font-weight:600;color:#6b7280;margin:0;">' + d.format('ddd').toUpperCase() + '</p>'
           + '<div style="display:flex;align-items:center;justify-content:center;margin-top:2px;">'
           + '<span style="font-size:16px;font-weight:700;line-height:1;'
-          + (isToday ? 'width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#4f46e5;color:#fff;'
-                     : 'color:#374151;') + '">' + d.format('D') + '</span>'
+          + (isToday
+              ? 'width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#4f46e5;color:#fff;'
+              : 'color:#374151;')
+          + '">' + d.format('D') + '</span>'
           + '</div></div>';
       }).join('');
 
-      // 시간 행
-      const timeRows = hours.map(h => {
-        const label = (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
-        const cells = days.map(day => {
-          const dayStr = day.format('YYYY-MM-DD');
-          const dayJobs = weekJobs.filter(j => {
-            const js = dayjs(j.scheduledStart);
-            return js.format('YYYY-MM-DD') === dayStr && js.hour() === h;
-          });
-          const jobsHtml = dayJobs.map(j => {
-            var jid = j.id;
-            var jtitle = escHtml(j.title);
-            var jcolor = j.color;
-            var jtime = formatTime(j.scheduledStart);
-            var jtech = escHtml((j.technician && j.technician.name) || 'Unassigned');
-            return '<div onclick="viewJob(&quot;' + jid + '&quot;)" title="' + jtitle + '" '
-              + 'style="background:' + jcolor + ';border-radius:6px;padding:3px 6px;margin-bottom:2px;cursor:pointer;overflow:hidden;">'
-              + '<div style="font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + jtitle + '</div>'
-              + '<div style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
-              + jtime + ' · ' + jtech + '</div>'
-              + '</div>';
-          }).join('');
-          return '<div style="min-width:0;border-right:1px solid #f3f4f6;padding:2px;min-height:52px;">' + jobsHtml + '</div>';
+      // ─── 시간 눈금 라벨 ──────────────────────────────────
+      var timeLabels = '';
+      for (var h = HOUR_START; h <= HOUR_END; h++) {
+        var ampm  = h >= 12 ? 'pm' : 'am';
+        var h12   = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        var label = h12 + ampm;
+        var topPx = (h - HOUR_START) * ROW_H;
+        timeLabels += '<div style="position:absolute;top:' + topPx + 'px;right:6px;'
+          + 'font-size:10px;font-weight:500;color:#9ca3af;line-height:1;transform:translateY(-7px);white-space:nowrap;">'
+          + label + '</div>';
+      }
+
+      // ─── 수평 구분선 ────────────────────────────────────
+      var hLines = '';
+      for (var hh = 0; hh <= TOTAL_HOURS; hh++) {
+        hLines += '<div style="position:absolute;left:0;right:0;top:' + (hh * ROW_H) + 'px;'
+          + 'border-top:1px solid ' + (hh === 0 ? '#d1d5db' : '#f3f4f6') + ';pointer-events:none;"></div>';
+        // 30분 보조선
+        if (hh < TOTAL_HOURS) {
+          hLines += '<div style="position:absolute;left:0;right:0;top:' + (hh * ROW_H + ROW_H / 2) + 'px;'
+            + 'border-top:1px dashed #f9fafb;pointer-events:none;"></div>';
+        }
+      }
+
+      // ─── 각 날짜 열: job 블록 절대 배치 ────────────────
+      var dayCols = days.map(function(day) {
+        var dStr    = day.format('YYYY-MM-DD');
+        var isToday = dStr === todayStr;
+
+        // 이 날의 job들 (scheduledStart의 날짜 기준)
+        var dayJobs = weekJobs.filter(function(j) {
+          return j.scheduledStart.substring(0, 10) === dStr;
+        });
+
+        // 시작 시간 순 정렬
+        dayJobs.sort(function(a, b) {
+          return (a.scheduledStart || '').localeCompare(b.scheduledStart || '');
+        });
+
+        // ── 겹침 처리: 컬럼 레이아웃 계산 ──────────────
+        // columns[i] = i번 열의 현재까지 최대 end 시각(분 단위)
+        var colEnds = [];
+        var layout = dayJobs.map(function(j) {
+          var startDj = dayjs(j.scheduledStart);
+          var startMin = startDj.hour() * 60 + startDj.minute();
+          var endDj   = j.scheduledEnd ? dayjs(j.scheduledEnd) : startDj.add(1, 'hour');
+          var endMin  = endDj.hour() * 60 + endDj.minute();
+          if (endMin <= startMin) endMin = startMin + 30; // 최소 30분
+
+          // 배치할 열 선택 (endMin이 startMin보다 크거나 같은 열 제외)
+          var col = 0;
+          while (col < colEnds.length && colEnds[col] > startMin) col++;
+          colEnds[col] = endMin;
+          return { job: j, col: col, startMin: startMin, endMin: endMin };
+        });
+        var totalCols = colEnds.length || 1;
+
+        var jobBlocks = layout.map(function(item) {
+          var j        = item.job;
+          var startMin = item.startMin;
+          var endMin   = item.endMin;
+
+          // 표시 범위 클램프 (HOUR_START ~ HOUR_END)
+          var displayStart = Math.max(startMin, HOUR_START * 60);
+          var displayEnd   = Math.min(endMin,   HOUR_END   * 60);
+          if (displayEnd <= displayStart) return '';
+
+          // px 위치 계산: (분 오프셋 / 60) * ROW_H
+          var topPx    = ((displayStart - HOUR_START * 60) / 60) * ROW_H;
+          var heightPx = Math.max(((displayEnd - displayStart) / 60) * ROW_H - 2, 20);
+
+          // 너비/좌측 위치 (겹침 처리)
+          var colW    = 100 / totalCols;
+          var leftPct = item.col * colW;
+
+          var jid       = j.id;
+          var jtitle    = escHtml(j.title || '');
+          var jcolor    = j.color || '#3B82F6';
+          var timeRange = formatTime(j.scheduledStart) + ' – ' + formatTime(j.scheduledEnd);
+          var jtech     = escHtml((j.technician && j.technician.name) || '');
+          var showDetail = heightPx >= 38;
+
+          return '<div onclick="viewJob(&quot;' + jid + '&quot;)" '
+            + 'title="' + jtitle + ' (' + timeRange + ')"'
+            + ' style="position:absolute;'
+            + 'top:'    + topPx.toFixed(1)    + 'px;'
+            + 'height:' + heightPx.toFixed(1) + 'px;'
+            + 'left:calc('  + leftPct.toFixed(1) + '% + 2px);'
+            + 'width:calc(' + colW.toFixed(1)    + '% - 4px);'
+            + 'background:' + jcolor + ';'
+            + 'border-radius:5px;'
+            + 'padding:3px 6px;'
+            + 'cursor:pointer;'
+            + 'overflow:hidden;'
+            + 'box-shadow:0 1px 4px rgba(0,0,0,0.18);'
+            + 'border-left:3px solid rgba(0,0,0,0.18);'
+            + 'z-index:2;'
+            + 'transition:opacity 0.15s;"'
+            + ' onmouseover="this.style.opacity=0.85"'
+            + ' onmouseout="this.style.opacity=1">'
+            + '<div style="font-size:11px;font-weight:700;color:#fff;'
+            + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35;">'
+            + jtitle + '</div>'
+            + (showDetail
+                ? '<div style="font-size:10px;color:rgba(255,255,255,0.88);'
+                  + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;">'
+                  + timeRange + (jtech ? ' · ' + jtech : '') + '</div>'
+                : '')
+            + '</div>';
         }).join('');
 
-        return '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #f9fafb;">'
-          + '<div style="text-align:right;padding:4px 8px 4px 0;font-size:11px;color:#9ca3af;line-height:52px;">' + label + '</div>'
-          + cells
+        return '<div style="position:relative;min-width:0;border-right:1px solid #f3f4f6;height:' + GRID_H + 'px;'
+          + (isToday ? 'background:rgba(79,70,229,0.025);' : '') + '">'
+          + hLines
+          + jobBlocks
           + '</div>';
       }).join('');
 
+      // ─── 현재 시각 표시선 ────────────────────────────────
+      var nowLine = '';
+      var nowDj   = dayjs();
+      var nowMin  = nowDj.hour() * 60 + nowDj.minute();
+      if (nowMin >= HOUR_START * 60 && nowMin < HOUR_END * 60) {
+        var isThisWeek = todayStr >= weekStart && todayStr <= weekEnd;
+        if (isThisWeek) {
+          var nowTop = ((nowMin - HOUR_START * 60) / 60) * ROW_H;
+          nowLine = '<div style="position:absolute;left:0;right:0;top:' + nowTop.toFixed(1) + 'px;'
+            + 'border-top:2px solid #ef4444;z-index:4;pointer-events:none;">'
+            + '<div style="position:absolute;left:-5px;top:-5px;width:10px;height:10px;'
+            + 'border-radius:50%;background:#ef4444;"></div>'
+            + '</div>';
+        }
+      }
+
       return '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">'
-        // 헤더
-        + '<div class="flex items-center justify-between p-4 border-b border-gray-100">'
-        +   '<div class="flex items-center gap-2">'
-        +     '<button onclick="changeWeek(-1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-left text-gray-600"></i></button>'
-        +     '<h3 class="font-semibold text-gray-800 text-sm">' + days[0].format('MMM D') + ' – ' + days[6].format('MMM D, YYYY') + '</h3>'
-        +     '<button onclick="changeWeek(1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-right text-gray-600"></i></button>'
+        // ── 헤더 바 ─────────────────────────────────────
+        + '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #f3f4f6;">'
+        +   '<div style="display:flex;align-items:center;gap:6px;">'
+        +     '<button onclick="changeWeek(-1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-left" style="color:#4b5563;"></i></button>'
+        +     '<span style="font-weight:600;font-size:14px;color:#111827;">' + days[0].format('MMM D') + ' – ' + days[6].format('MMM D, YYYY') + '</span>'
+        +     '<button onclick="changeWeek(1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-right" style="color:#4b5563;"></i></button>'
         +   '</div>'
-        +   '<div class="flex items-center gap-2">'
+        +   '<div style="display:flex;align-items:center;gap:8px;">'
         +     '<button onclick="goToToday()" class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">Today</button>'
-        +     '<button onclick="openJobModal()" class="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus"></i> New Job</button>'
+        +     '<button onclick="openJobModal()" class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition"><i class="fas fa-plus"></i> New Job</button>'
         +   '</div>'
         + '</div>'
-        // 요일 헤더 행
-        + '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #f3f4f6;">'
+        // ── 요일 헤더 행 ─────────────────────────────────
+        + '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #e5e7eb;">'
         +   '<div></div>' + dayHeaders
         + '</div>'
-        // 시간 그리드
-        + '<div style="overflow-y:auto;max-height:520px;">' + timeRows + '</div>'
+        // ── 시간 그리드 스크롤 영역 ──────────────────────
+        + '<div style="overflow-y:auto;max-height:600px;">'
+        +   '<div style="display:grid;grid-template-columns:' + gridCols + ';">'
+        // 시간 라벨 열
+        +     '<div style="position:relative;height:' + GRID_H + 'px;border-right:1px solid #e5e7eb;">'
+        +       timeLabels
+        +     '</div>'
+        // 날짜 열 컨테이너 (nowLine 공유)
+        +     '<div style="position:relative;grid-column:2/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));">'
+        +       (nowLine
+          ? '<div style="position:absolute;left:0;right:0;top:0;height:' + GRID_H + 'px;pointer-events:none;z-index:4;">' + nowLine + '</div>'
+          : '')
+        +       dayCols
+        +     '</div>'
+        +   '</div>'
+        + '</div>'
         + '</div>';
     }
 

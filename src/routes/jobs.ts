@@ -180,12 +180,26 @@ jobs.delete('/:id', async (c) => {
   return c.json({ success: true })
 })
 
+// Normalize datetime strings: "2026-03-13 10:30:00" → "2026-03-13T10:30:00"
+// This ensures dayjs treats them as local (wall-clock) time, not UTC
+function normalizeDt(dt: string | null | undefined): string | null {
+  if (!dt) return null
+  // If already has 'T' separator or 'Z', return as-is
+  if (dt.includes('T') || dt.includes('Z')) return dt
+  // Replace space with T to make it an unambiguous local datetime
+  return dt.replace(' ', 'T')
+}
+
 function formatJob(j: any) {
   return {
     id: j.id, title: j.title, description: j.description,
     locationAddress: j.location_address, clientId: j.client_id, technicianId: j.technician_id,
-    createdBy: j.created_by, scheduledStart: j.scheduled_start, scheduledEnd: j.scheduled_end,
-    actualStart: j.actual_start, actualEnd: j.actual_end, status: j.status,
+    createdBy: j.created_by,
+    scheduledStart: normalizeDt(j.scheduled_start),
+    scheduledEnd: normalizeDt(j.scheduled_end),
+    actualStart: normalizeDt(j.actual_start),
+    actualEnd: normalizeDt(j.actual_end),
+    status: j.status,
     color: j.color, priority: j.priority, serviceType: j.service_type, notes: j.notes,
     createdAt: j.created_at, updatedAt: j.updated_at,
     client: j.client_id ? { id: j.client_id, name: j.client_name, phone: j.client_phone, email: j.client_email, address: j.client_address, notes: j.client_notes } : null,
