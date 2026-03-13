@@ -1536,8 +1536,9 @@ function getHTML(): string {
         +     '</div>'
         +   '</div>'
         // 버튼
-        +   '<div style="display:flex;gap:12px;margin-top:20px;">'
+        +   '<div style="display:flex;gap:10px;margin-top:20px;">'
         +     '<button type="button" id="jm-cancel" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:10px;color:#374151;font-size:13px;font-weight:500;background:#fff;cursor:pointer;">Cancel</button>'
+        +     (job ? '<button type="button" id="jm-delete" style="flex:1;padding:10px;border:1px solid #fca5a5;border-radius:10px;color:#dc2626;font-size:13px;font-weight:500;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><i class="fas fa-trash-alt" style="font-size:12px;"></i>Delete</button>' : '')
         +     '<button type="submit" id="jm-submit" style="flex:1;padding:10px;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">' + (job ? 'Save Changes' : 'Create Job') + '</button>'
         +   '</div>'
         + '</form>'
@@ -1550,6 +1551,28 @@ function getHTML(): string {
       document.getElementById('jm-close').addEventListener('click', closeModal);
       document.getElementById('jm-cancel').addEventListener('click', closeModal);
       wrap.addEventListener('click', function(e){ if (e.target === wrap) closeModal(); });
+
+      // Delete 버튼 (edit 모드일 때만 존재)
+      var deleteBtn = document.getElementById('jm-delete');
+      if (deleteBtn && job) {
+        deleteBtn.addEventListener('click', async function() {
+          if (!confirm('Delete "' + (job.title || 'this job') + '"? This action cannot be undone.')) return;
+          deleteBtn.disabled = true;
+          deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:12px;"></i> Deleting...';
+          try {
+            await apiCall('delete', '/jobs/' + job.id);
+            closeModal();
+            document.getElementById('job-detail-modal')?.remove();
+            await loadJobs();
+            await loadDashboardStats();
+            refreshView();
+            showToast('Job deleted', 'success');
+          } catch(err) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="fas fa-trash-alt" style="font-size:12px;"></i> Delete';
+          }
+        });
+      }
 
       // 컬러 피커 이벤트
       wrap.querySelectorAll('.jm-color').forEach(function(btn) {
