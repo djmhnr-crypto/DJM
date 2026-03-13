@@ -50,7 +50,7 @@ function getHTML(): string {
   <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isSameOrBefore.min.js"></script>
+
   <style>
     :root {
       --primary: #4F46E5;
@@ -108,7 +108,6 @@ function getHTML(): string {
 
   <script>
     dayjs.extend(dayjs_plugin_relativeTime);
-    dayjs.extend(dayjs_plugin_isSameOrBefore);
 
     // =================== STATE ===================
     const state = {
@@ -446,7 +445,6 @@ function getHTML(): string {
           </main>
         </div>
       </div>
-      \${renderJobModal()}
       \${renderClientModal()}
       \${renderUserModal()}
       \`;
@@ -566,67 +564,82 @@ function getHTML(): string {
       const today = dayjs(state.calendarDate);
       const startOfWeek = today.startOf('week');
       const days = Array.from({length:7}, (_,i) => startOfWeek.add(i,'day'));
-      const hours = Array.from({length:12}, (_,i) => i + 7); // 7am - 6pm
+      const hours = Array.from({length:12}, (_,i) => i + 7); // 7am ~ 6pm
 
-      const weekJobs = state.jobs.filter(j => {
-        const s = dayjs(j.scheduledStart);
-        return s.isSameOrBefore(days[6].endOf('day')) && dayjs(j.scheduledEnd).isAfter(days[0].startOf('day'));
+      // isSameOrBefore 없이 단순 문자열 비교로 주 범위 필터
+      const weekStart = days[0].format('YYYY-MM-DD');
+      const weekEnd   = days[6].format('YYYY-MM-DD');
+      const weekJobs  = state.jobs.filter(j => {
+        const d = dayjs(j.scheduledStart).format('YYYY-MM-DD');
+        return d >= weekStart && d <= weekEnd;
       });
 
-      const dayHeaders = days.map(d => \`
-        <div class="text-center py-2 px-1 border-r border-gray-100 last:border-r-0">
-          <p class="text-xs text-gray-500 font-medium">\${d.format('ddd').toUpperCase()}</p>
-          <p class="text-lg font-bold mt-0.5 \${d.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD') ? 'text-indigo-600 bg-indigo-50 rounded-full w-8 h-8 flex items-center justify-center mx-auto' : 'text-gray-700'}">\${d.format('D')}</p>
-        </div>
-      \`).join('');
+      // grid-template-columns 값 (inline style 사용 - Tailwind JIT 미적용 환경 대응)
+      const gridCols = '52px repeat(7, minmax(0, 1fr))';
 
-      const timeRows = hours.map(h => {
-        const cells = days.map(day => {
-          const dayJobs = weekJobs.filter(j => dayjs(j.scheduledStart).format('YYYY-MM-DD') === day.format('YYYY-MM-DD') && dayjs(j.scheduledStart).hour() === h);
-          return \`<div class="border-r border-gray-100 last:border-r-0 relative p-0.5 min-h-[50px]">
-            \${dayJobs.map(j => \`
-              <div class="text-white text-xs rounded-lg px-2 py-1 mb-0.5 cursor-pointer truncate shadow-sm"
-                style="background:\${j.color}" onclick="viewJob('\${j.id}')" title="\${escHtml(j.title)}">
-                <div class="font-medium truncate">\${escHtml(j.title)}</div>
-                <div class="opacity-75 text-xs">\${formatTime(j.scheduledStart)} • \${escHtml(j.technician?.name||'Unassigned')}</div>
-              </div>
-            \`).join('')}
-          </div>\`;
-        }).join('');
-        return \`<div class="grid border-b border-gray-50" style="grid-template-columns: 52px repeat(7, 1fr)">
-          <div class="text-right pr-2 py-2 text-xs text-gray-400 flex-shrink-0">\${h > 12 ? h-12 : h}\${h >= 12 ? 'pm' : 'am'}</div>
-          \${cells}
-        </div>\`;
+      // 요일 헤더
+      const dayHeaders = days.map(d => {
+        const isToday = d.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
+        return '<div style="text-align:center;padding:8px 4px;border-right:1px solid #f3f4f6;min-width:0;">'
+          + '<p style="font-size:11px;font-weight:600;color:#6b7280;margin:0;">' + d.format('ddd').toUpperCase() + '</p>'
+          + '<div style="display:flex;align-items:center;justify-content:center;margin-top:2px;">'
+          + '<span style="font-size:16px;font-weight:700;line-height:1;'
+          + (isToday ? 'width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#4f46e5;color:#fff;'
+                     : 'color:#374151;') + '">' + d.format('D') + '</span>'
+          + '</div></div>';
       }).join('');
 
-      return \`
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <!-- Calendar Header -->
-        <div class="flex items-center justify-between p-4 border-b border-gray-100">
-          <div class="flex items-center gap-2">
-            <button onclick="changeWeek(-1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-left text-gray-600"></i></button>
-            <h3 class="font-semibold text-gray-800 text-sm">
-              \${days[0].format('MMM D')} – \${days[6].format('MMM D, YYYY')}
-            </h3>
-            <button onclick="changeWeek(1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-right text-gray-600"></i></button>
-          </div>
-          <div class="flex items-center gap-2">
-            <button onclick="goToToday()" class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">Today</button>
-            <button onclick="openJobModal()" class="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">
-              <i class="fas fa-plus"></i> New Job
-            </button>
-          </div>
-        </div>
-        <!-- Day Headers -->
-        <div class="grid border-b border-gray-100" style="grid-template-columns: 52px repeat(7, 1fr)">
-          <div></div>
-          \${dayHeaders}
-        </div>
-        <!-- Time Grid -->
-        <div class="overflow-y-auto max-h-[500px]">
-          \${timeRows}
-        </div>
-      </div>\`;
+      // 시간 행
+      const timeRows = hours.map(h => {
+        const label = (h > 12 ? h - 12 : h) + (h >= 12 ? 'pm' : 'am');
+        const cells = days.map(day => {
+          const dayStr = day.format('YYYY-MM-DD');
+          const dayJobs = weekJobs.filter(j => {
+            const js = dayjs(j.scheduledStart);
+            return js.format('YYYY-MM-DD') === dayStr && js.hour() === h;
+          });
+          const jobsHtml = dayJobs.map(j => {
+            var jid = j.id;
+            var jtitle = escHtml(j.title);
+            var jcolor = j.color;
+            var jtime = formatTime(j.scheduledStart);
+            var jtech = escHtml((j.technician && j.technician.name) || 'Unassigned');
+            return '<div onclick="viewJob(&quot;' + jid + '&quot;)" title="' + jtitle + '" '
+              + 'style="background:' + jcolor + ';border-radius:6px;padding:3px 6px;margin-bottom:2px;cursor:pointer;overflow:hidden;">'
+              + '<div style="font-size:11px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + jtitle + '</div>'
+              + '<div style="font-size:10px;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+              + jtime + ' · ' + jtech + '</div>'
+              + '</div>';
+          }).join('');
+          return '<div style="min-width:0;border-right:1px solid #f3f4f6;padding:2px;min-height:52px;">' + jobsHtml + '</div>';
+        }).join('');
+
+        return '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #f9fafb;">'
+          + '<div style="text-align:right;padding:4px 8px 4px 0;font-size:11px;color:#9ca3af;line-height:52px;">' + label + '</div>'
+          + cells
+          + '</div>';
+      }).join('');
+
+      return '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">'
+        // 헤더
+        + '<div class="flex items-center justify-between p-4 border-b border-gray-100">'
+        +   '<div class="flex items-center gap-2">'
+        +     '<button onclick="changeWeek(-1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-left text-gray-600"></i></button>'
+        +     '<h3 class="font-semibold text-gray-800 text-sm">' + days[0].format('MMM D') + ' – ' + days[6].format('MMM D, YYYY') + '</h3>'
+        +     '<button onclick="changeWeek(1)" class="p-2 hover:bg-gray-100 rounded-lg transition"><i class="fas fa-chevron-right text-gray-600"></i></button>'
+        +   '</div>'
+        +   '<div class="flex items-center gap-2">'
+        +     '<button onclick="goToToday()" class="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition">Today</button>'
+        +     '<button onclick="openJobModal()" class="flex items-center gap-1.5 bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus"></i> New Job</button>'
+        +   '</div>'
+        + '</div>'
+        // 요일 헤더 행
+        + '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #f3f4f6;">'
+        +   '<div></div>' + dayHeaders
+        + '</div>'
+        // 시간 그리드
+        + '<div style="overflow-y:auto;max-height:520px;">' + timeRows + '</div>'
+        + '</div>';
     }
 
     function changeWeek(dir) {
@@ -1282,140 +1295,163 @@ function getHTML(): string {
       } catch(e) {}
     }
 
-    // =================== JOB MODAL ===================
-    function renderJobModal() {
-      const job = state.editingJob;
-      const title = job ? 'Edit Job' : 'Create New Job';
-      const techs = state.users.filter(u => u.role === 'TECHNICIAN' && u.is_active);
-      const colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#F97316'];
+    // =================== JOB MODAL (DOM append 방식) ===================
+    function openJobModal(jobData) {
+      var job = jobData || null;
+      state.editingJob = job;
+      // 이미 열린 모달 제거
+      var existing = document.getElementById('job-modal-root');
+      if (existing) existing.remove();
 
-      const selectedColor = job?.color || '#3B82F6';
-      const startVal = job ? dayjs(job.scheduledStart).format('YYYY-MM-DDTHH:mm') : dayjs().add(1,'hour').startOf('hour').format('YYYY-MM-DDTHH:mm');
-      const endVal = job ? dayjs(job.scheduledEnd).format('YYYY-MM-DDTHH:mm') : dayjs().add(2,'hour').startOf('hour').format('YYYY-MM-DDTHH:mm');
+      var title  = job ? 'Edit Job' : 'Create New Job';
+      var techs  = state.users.filter(function(u){ return u.role === 'TECHNICIAN' && u.is_active; });
+      var colors = ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#F97316'];
+      var selColor  = (job && job.color) ? job.color : '#3B82F6';
+      var startVal  = job ? dayjs(job.scheduledStart).format('YYYY-MM-DDTHH:mm')
+                          : dayjs().add(1,'hour').startOf('hour').format('YYYY-MM-DDTHH:mm');
+      var endVal    = job ? dayjs(job.scheduledEnd).format('YYYY-MM-DDTHH:mm')
+                          : dayjs().add(2,'hour').startOf('hour').format('YYYY-MM-DDTHH:mm');
 
-      return \`
-      <div id="job-modal" class="modal-overlay \${state.modalOpen ? '' : 'hidden'}">
-        <div class="modal-content fade-in">
-          <div class="p-5 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
-            <h2 class="font-bold text-gray-800 text-lg">\${title}</h2>
-            <button onclick="closeJobModal()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <form id="job-form" class="p-5 space-y-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Job Title *</label>
-                <input id="jf-title" type="text" required value="\${escHtml(job?.title||'')}" placeholder="e.g., HVAC Maintenance"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Start Time *</label>
-                <input id="jf-start" type="datetime-local" required value="\${startVal}"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">End Time *</label>
-                <input id="jf-end" type="datetime-local" required value="\${endVal}"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Client</label>
-                <select id="jf-client" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">— Select Client —</option>
-                  \${state.clients.map(c => \`<option value="\${c.id}" \${job?.clientId===c.id?'selected':''}>\${escHtml(c.name)}</option>\`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Technician</label>
-                <select id="jf-tech" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">— Unassigned —</option>
-                  \${techs.map(t => \`<option value="\${t.id}" \${job?.technicianId===t.id?'selected':''}>\${escHtml(t.name)}\${t.specialty?' ('+t.specialty+')':''}</option>\`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Service Type</label>
-                <select id="jf-service" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">— Select Type —</option>
-                  \${['HVAC','Electrical','Plumbing','Inspection','Installation','Repair','Maintenance'].map(s => \`<option value="\${s}" \${job?.serviceType===s?'selected':''}>\${s}</option>\`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
-                <select id="jf-priority" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  \${['LOW','NORMAL','HIGH','URGENT'].map(p => \`<option value="\${p}" \${(job?.priority||'NORMAL')===p?'selected':''}>\${priorityIcon(p)} \${p}</option>\`).join('')}
-                </select>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Location Address</label>
-                <input id="jf-location" type="text" value="\${escHtml(job?.locationAddress||'')}" placeholder="123 Main St, City, State"
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              </div>
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-                <textarea id="jf-desc" rows="2" placeholder="Job details and requirements..."
-                  class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none">\${escHtml(job?.description||'')}</textarea>
-              </div>
-              <div class="col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Color Tag</label>
-                <div class="flex gap-2 flex-wrap" id="color-picker">
-                  \${colors.map(c => \`
-                    <button type="button" onclick="selectColor('\${c}')"
-                      class="w-8 h-8 rounded-full border-2 transition \${c === selectedColor ? 'border-gray-800 scale-110' : 'border-transparent'}"
-                      style="background:\${c}" data-color="\${c}"></button>
-                  \`).join('')}
-                </div>
-                <input type="hidden" id="jf-color" value="\${selectedColor}">
-              </div>
-            </div>
-            <div class="flex gap-3 pt-2">
-              <button type="button" onclick="closeJobModal()" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition text-sm">Cancel</button>
-              <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition text-sm">
-                \${job ? 'Save Changes' : 'Create Job'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>\`;
-    }
+      var clientOpts = '<option value="">— Select Client —</option>'
+        + state.clients.map(function(c){
+            return '<option value="' + c.id + '"' + (job && job.clientId===c.id ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
+          }).join('');
 
-    function selectColor(c) {
-      document.getElementById('jf-color').value = c;
-      document.querySelectorAll('#color-picker button').forEach(btn => {
-        btn.className = btn.dataset.color === c
-          ? 'w-8 h-8 rounded-full border-2 border-gray-800 scale-110 transition'
-          : 'w-8 h-8 rounded-full border-2 border-transparent transition';
-        btn.style.background = btn.dataset.color;
+      var techOpts = '<option value="">— Unassigned —</option>'
+        + techs.map(function(t){
+            return '<option value="' + t.id + '"' + (job && job.technicianId===t.id ? ' selected' : '') + '>'
+              + escHtml(t.name) + (t.specialty ? ' (' + t.specialty + ')' : '') + '</option>';
+          }).join('');
+
+      var serviceTypes = ['HVAC','Electrical','Plumbing','Inspection','Installation','Repair','Maintenance'];
+      var serviceOpts  = '<option value="">— Select Type —</option>'
+        + serviceTypes.map(function(s){
+            return '<option value="' + s + '"' + (job && job.serviceType===s ? ' selected' : '') + '>' + s + '</option>';
+          }).join('');
+
+      var priorities = ['LOW','NORMAL','HIGH','URGENT'];
+      var priorityOpts = priorities.map(function(p){
+        return '<option value="' + p + '"' + ((job ? job.priority : 'NORMAL')===p ? ' selected' : '') + '>'
+          + priorityIcon(p) + ' ' + p + '</option>';
+      }).join('');
+
+      var colorBtns = colors.map(function(c){
+        return '<button type="button" class="jm-color" data-color="' + c + '" style="width:32px;height:32px;border-radius:50%;border:2px solid '
+          + (c===selColor ? '#1f2937' : 'transparent') + ';background:' + c + ';cursor:pointer;transition:all .15s;'
+          + (c===selColor ? 'transform:scale(1.15);' : '') + '"></button>';
+      }).join('');
+
+      var wrap = document.createElement('div');
+      wrap.id = 'job-modal-root';
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+      wrap.innerHTML =
+        '<div style="background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,0.25);">'
+        // 헤더
+        + '<div style="padding:20px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">'
+        +   '<h2 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">' + title + '</h2>'
+        +   '<button id="jm-close" type="button" style="padding:8px;color:#9ca3af;border:none;background:none;cursor:pointer;border-radius:8px;"><i class="fas fa-times"></i></button>'
+        + '</div>'
+        // 폼
+        + '<form id="job-form" style="padding:20px;">'
+        +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+        // 제목 (col-span-2)
+        +     '<div style="grid-column:1/-1;">'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Job Title *</label>'
+        +       '<input id="jf-title" type="text" required placeholder="e.g., HVAC Maintenance" value="' + escHtml((job && job.title)||'') + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
+        +     '</div>'
+        // 시작
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Start Time *</label>'
+        +       '<input id="jf-start" type="datetime-local" required value="' + startVal + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
+        +     '</div>'
+        // 종료
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">End Time *</label>'
+        +       '<input id="jf-end" type="datetime-local" required value="' + endVal + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
+        +     '</div>'
+        // 클라이언트
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Client</label>'
+        +       '<select id="jf-client" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">' + clientOpts + '</select>'
+        +     '</div>'
+        // 기술자
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Technician</label>'
+        +       '<select id="jf-tech" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">' + techOpts + '</select>'
+        +     '</div>'
+        // 서비스 유형
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Service Type</label>'
+        +       '<select id="jf-service" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">' + serviceOpts + '</select>'
+        +     '</div>'
+        // 우선순위
+        +     '<div>'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Priority</label>'
+        +       '<select id="jf-priority" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">' + priorityOpts + '</select>'
+        +     '</div>'
+        // 주소 (col-span-2)
+        +     '<div style="grid-column:1/-1;">'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Location Address</label>'
+        +       '<input id="jf-location" type="text" placeholder="123 Main St, City, State" value="' + escHtml((job && job.locationAddress)||'') + '" style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;box-sizing:border-box;">'
+        +     '</div>'
+        // 설명 (col-span-2)
+        +     '<div style="grid-column:1/-1;">'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Description</label>'
+        +       '<textarea id="jf-desc" rows="2" placeholder="Job details and requirements..." style="width:100%;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;outline:none;resize:none;box-sizing:border-box;">' + escHtml((job && job.description)||'') + '</textarea>'
+        +     '</div>'
+        // 컬러 태그 (col-span-2)
+        +     '<div style="grid-column:1/-1;">'
+        +       '<label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Color Tag</label>'
+        +       '<div id="color-picker" style="display:flex;gap:8px;flex-wrap:wrap;">' + colorBtns + '</div>'
+        +       '<input type="hidden" id="jf-color" value="' + selColor + '">'
+        +     '</div>'
+        +   '</div>'
+        // 버튼
+        +   '<div style="display:flex;gap:12px;margin-top:20px;">'
+        +     '<button type="button" id="jm-cancel" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:10px;color:#374151;font-size:13px;font-weight:500;background:#fff;cursor:pointer;">Cancel</button>'
+        +     '<button type="submit" id="jm-submit" style="flex:1;padding:10px;border:none;border-radius:10px;background:#4f46e5;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">' + (job ? 'Save Changes' : 'Create Job') + '</button>'
+        +   '</div>'
+        + '</form>'
+        + '</div>';
+
+      document.body.appendChild(wrap);
+
+      // 닫기
+      function closeModal() { wrap.remove(); state.editingJob = null; }
+      document.getElementById('jm-close').addEventListener('click', closeModal);
+      document.getElementById('jm-cancel').addEventListener('click', closeModal);
+      wrap.addEventListener('click', function(e){ if (e.target === wrap) closeModal(); });
+
+      // 컬러 피커 이벤트
+      wrap.querySelectorAll('.jm-color').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var c = btn.dataset.color;
+          document.getElementById('jf-color').value = c;
+          wrap.querySelectorAll('.jm-color').forEach(function(b) {
+            b.style.border = '2px solid ' + (b.dataset.color === c ? '#1f2937' : 'transparent');
+            b.style.transform = b.dataset.color === c ? 'scale(1.15)' : 'scale(1)';
+          });
+        });
       });
-    }
 
-    function openJobModal(jobData = null) {
-      state.editingJob = jobData; state.modalOpen = true;
-      refreshView();
-    }
-    function closeJobModal() { state.editingJob = null; state.modalOpen = false; refreshView(); }
-
-    async function editJob(id) {
-      const job = await apiCall('get', '/jobs/' + id);
-      openJobModal(job);
-    }
-
-    function bindJobForm() {
-      const form = document.getElementById('job-form');
-      if (!form) return;
-      form.addEventListener('submit', async (e) => {
+      // 폼 submit
+      document.getElementById('job-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const data = {
-          title: document.getElementById('jf-title').value,
-          scheduledStart: document.getElementById('jf-start').value + ':00',
-          scheduledEnd: document.getElementById('jf-end').value + ':00',
-          clientId: document.getElementById('jf-client').value || null,
-          technicianId: document.getElementById('jf-tech').value || null,
-          serviceType: document.getElementById('jf-service').value || null,
-          priority: document.getElementById('jf-priority').value,
+        var submitBtn = document.getElementById('jm-submit');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        var data = {
+          title:           document.getElementById('jf-title').value,
+          scheduledStart:  document.getElementById('jf-start').value,
+          scheduledEnd:    document.getElementById('jf-end').value,
+          clientId:        document.getElementById('jf-client').value   || null,
+          technicianId:    document.getElementById('jf-tech').value     || null,
+          serviceType:     document.getElementById('jf-service').value  || null,
+          priority:        document.getElementById('jf-priority').value,
           locationAddress: document.getElementById('jf-location').value || null,
-          description: document.getElementById('jf-desc').value || null,
-          color: document.getElementById('jf-color').value,
+          description:     document.getElementById('jf-desc').value     || null,
+          color:           document.getElementById('jf-color').value,
         };
         try {
           if (state.editingJob) {
@@ -1425,13 +1461,25 @@ function getHTML(): string {
             await apiCall('post', '/jobs', data);
             showToast('Job created!', 'success');
           }
-          closeJobModal();
+          closeModal();
           await loadJobs();
           await loadDashboardStats();
           refreshView();
-        } catch(e) {}
+        } catch(err) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = job ? 'Save Changes' : 'Create Job';
+        }
       });
     }
+
+    function closeJobModal() { var m = document.getElementById('job-modal-root'); if(m) m.remove(); state.editingJob = null; }
+
+    async function editJob(id) {
+      var job = await apiCall('get', '/jobs/' + id);
+      openJobModal(job);
+    }
+
+    function bindJobForm() { /* openJobModal 내부에서 처리 */ }
 
     // =================== CLIENT MODAL ===================
     function renderClientModal() {
