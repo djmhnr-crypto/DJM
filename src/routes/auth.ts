@@ -5,6 +5,14 @@ type Bindings = { DB: D1Database; JWT_SECRET?: string }
 
 const auth = new Hono<{ Bindings: Bindings }>()
 
+// Public: list technicians for login dropdown (no auth required)
+auth.get('/technicians-public', async (c) => {
+  const result = await c.env.DB.prepare(
+    `SELECT id, name, email, specialty, avatar_color FROM users WHERE role = 'TECHNICIAN' AND is_active = 1 ORDER BY name ASC`
+  ).all<any>()
+  return c.json(result.results)
+})
+
 auth.post('/login', async (c) => {
   const { email, password } = await c.req.json()
   if (!email || !password) return c.json({ error: 'Email and password required' }, 400)

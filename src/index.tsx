@@ -164,7 +164,7 @@ function getHTML(): string {
     async function loadInitialData() {
       try {
         const promises = [loadNotifications(), loadDashboardStats()];
-        if (state.user.role === 'ADMIN') {
+        if (isAdminUser()) {
           promises.push(loadJobs(), loadClients(), loadUsers());
         } else {
           promises.push(loadActiveLog());
@@ -263,81 +263,149 @@ function getHTML(): string {
     function formatDateTime(dt) { return dt ? dayjs(dt).format('MMM D, h:mm A') : '-'; }
 
     // =================== RENDER ENGINE ===================
+    function isAdminUser() { return state.user && (state.user.role === 'ADMIN' || state.user.role === 'OWNER'); }
     function renderApp() {
       const app = document.getElementById('app');
       if (!state.token || !state.user) { app.innerHTML = renderLogin(); bindLoginEvents(); return; }
-      if (state.user.role === 'ADMIN') { app.innerHTML = renderAdminLayout(); bindAdminEvents(); }
+      if (isAdminUser()) { app.innerHTML = renderAdminLayout(); bindAdminEvents(); }
       else { app.innerHTML = renderTechLayout(); bindTechEvents(); }
     }
 
     // =================== LOGIN PAGE ===================
     function renderLogin() {
       return \`
-      <div class="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 flex items-center justify-center p-4">
+      <div class="min-h-screen bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
         <div class="w-full max-w-md">
-          <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-              <i class="fas fa-truck text-3xl text-indigo-600"></i>
+          <!-- Logo -->
+          <div class="text-center mb-6">
+            <div class="inline-block bg-white rounded-2xl shadow-xl px-6 py-4 mb-4">
+              <img src="/static/djm-logo.png" alt="DJM Heating and Refrigeration" class="h-16 object-contain mx-auto" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+              <div style="display:none" class="text-center">
+                <p class="text-2xl font-black text-blue-800">DJM</p>
+                <p class="text-sm font-bold text-red-600">Heating & Refrigeration</p>
+              </div>
             </div>
-            <h1 class="text-3xl font-bold text-white">DJM Heating</h1>
-            <p class="text-indigo-200 mt-1">DJM Heating and Refrigeration</p>
           </div>
+
           <div class="bg-white rounded-2xl shadow-2xl p-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-6">Sign In</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-1">Welcome Back</h2>
+            <p class="text-sm text-gray-500 mb-6">Sign in to your account</p>
             <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4 text-sm"></div>
+
+            <!-- Login Mode Toggle -->
+            <div class="flex bg-gray-100 rounded-xl p-1 mb-5 gap-1">
+              <button id="mode-staff" onclick="setLoginMode('staff')"
+                class="flex-1 py-2 text-sm font-medium rounded-lg transition bg-white shadow text-gray-800">
+                <i class="fas fa-hard-hat mr-1.5"></i>Technician
+              </button>
+              <button id="mode-admin" onclick="setLoginMode('admin')"
+                class="flex-1 py-2 text-sm font-medium rounded-lg transition text-gray-500 hover:text-gray-700">
+                <i class="fas fa-user-shield mr-1.5"></i>Admin / Owner
+              </button>
+            </div>
+
             <form id="login-form">
-              <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                <div class="relative">
-                  <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                  <input id="login-email" type="email" placeholder="you@djmheating.com" required
-                    class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+              <!-- Technician Mode: Dropdown -->
+              <div id="tech-login-section">
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Technician</label>
+                  <div class="relative">
+                    <i class="fas fa-hard-hat absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10"></i>
+                    <select id="tech-select" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none">
+                      <option value="">— Select your name —</option>
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                  </div>
+                </div>
+                <div class="mb-5">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <div class="relative">
+                    <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input id="tech-password" type="password" placeholder="••••••••"
+                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
                 </div>
               </div>
-              <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-                <div class="relative">
-                  <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                  <input id="login-password" type="password" placeholder="••••••••" required
-                    class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+
+              <!-- Admin Mode: Email + Password -->
+              <div id="admin-login-section" class="hidden">
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                  <div class="relative">
+                    <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input id="login-email" type="email" placeholder="you@djmheating.com"
+                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                </div>
+                <div class="mb-5">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <div class="relative">
+                    <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input id="login-password" type="password" placeholder="••••••••"
+                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
                 </div>
               </div>
+
               <button type="submit" id="login-btn"
                 class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
                 <i class="fas fa-sign-in-alt"></i> Sign In
               </button>
             </form>
-            <div class="mt-6 p-4 bg-gray-50 rounded-xl">
-              <p class="text-xs font-semibold text-gray-500 mb-2">Demo Accounts (password: password123)</p>
-              <div class="grid grid-cols-2 gap-2">
-                <button onclick="demoLogin('admin@fieldvibe.com')" class="text-xs bg-indigo-100 text-indigo-700 rounded-lg px-3 py-2 hover:bg-indigo-200 transition font-medium">
-                  <i class="fas fa-user-shield mr-1"></i> Admin
-                </button>
-                <button onclick="demoLogin('john.smith@fieldvibe.com')" class="text-xs bg-green-100 text-green-700 rounded-lg px-3 py-2 hover:bg-green-200 transition font-medium">
-                  <i class="fas fa-hard-hat mr-1"></i> Technician
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>\`;
     }
 
-    function demoLogin(email) {
-      document.getElementById('login-email').value = email;
-      document.getElementById('login-password').value = 'password123';
-      document.getElementById('login-form').dispatchEvent(new Event('submit'));
+    var _loginMode = 'staff';
+    function setLoginMode(mode) {
+      _loginMode = mode;
+      var isStaff = mode === 'staff';
+      document.getElementById('tech-login-section').classList.toggle('hidden', !isStaff);
+      document.getElementById('admin-login-section').classList.toggle('hidden', isStaff);
+      var staffBtn = document.getElementById('mode-staff');
+      var adminBtn = document.getElementById('mode-admin');
+      if (isStaff) {
+        staffBtn.className = 'flex-1 py-2 text-sm font-medium rounded-lg transition bg-white shadow text-gray-800';
+        adminBtn.className = 'flex-1 py-2 text-sm font-medium rounded-lg transition text-gray-500 hover:text-gray-700';
+      } else {
+        adminBtn.className = 'flex-1 py-2 text-sm font-medium rounded-lg transition bg-white shadow text-gray-800';
+        staffBtn.className = 'flex-1 py-2 text-sm font-medium rounded-lg transition text-gray-500 hover:text-gray-700';
+        setTimeout(function(){ var el = document.getElementById('login-email'); if(el) el.focus(); }, 50);
+      }
+    }
+
+    async function loadTechnicianDropdown() {
+      try {
+        var r = await axios.get('/api/auth/technicians-public');
+        var sel = document.getElementById('tech-select');
+        if (!sel) return;
+        sel.innerHTML = '<option value="">— Select your name —</option>'
+          + r.data.map(function(t) {
+              return '<option value="' + escHtml(t.email||'') + '">' + escHtml(t.name) + (t.specialty ? ' (' + t.specialty + ')' : '') + '</option>';
+            }).join('');
+      } catch(e) {}
     }
 
     function bindLoginEvents() {
-      document.getElementById('login-form').addEventListener('submit', async (e) => {
+      loadTechnicianDropdown();
+      document.getElementById('login-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        const btn = document.getElementById('login-btn');
-        const errEl = document.getElementById('login-error');
+        var btn = document.getElementById('login-btn');
+        var errEl = document.getElementById('login-error');
         btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Signing in...';
         errEl.classList.add('hidden');
         try {
-          await login(document.getElementById('login-email').value, document.getElementById('login-password').value);
+          var email, password;
+          if (_loginMode === 'staff') {
+            email = document.getElementById('tech-select').value;
+            password = document.getElementById('tech-password').value;
+            if (!email) { errEl.textContent = 'Please select your name'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
+          } else {
+            email = document.getElementById('login-email').value;
+            password = document.getElementById('login-password').value;
+          }
+          await login(email, password);
         } catch(err) {
           errEl.textContent = err.response?.data?.error || 'Invalid credentials'; errEl.classList.remove('hidden');
           btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In';
@@ -366,7 +434,7 @@ function getHTML(): string {
       ];
 
       const sidebarNav = navItems.map(item => \`
-        <a href="#" onclick="navigate('\${item.id}'); return false;" 
+        <a href="#" data-view="\${item.id}" onclick="navigate('\${item.id}'); return false;" 
           class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
           \${state.currentView === item.id ? 'active text-white bg-white/20' : 'text-indigo-200 hover:text-white'}">
           <i class="fas \${item.icon} w-5 text-center"></i>
@@ -377,16 +445,10 @@ function getHTML(): string {
       return \`
       <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar w-60 bg-gradient-to-b from-indigo-700 to-indigo-900 flex flex-col flex-shrink-0 h-full z-40">
-          <div class="p-5 border-b border-indigo-600">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center">
-                <i class="fas fa-truck text-indigo-600 text-lg"></i>
-              </div>
-              <div>
-                <h1 class="text-white font-bold text-base leading-tight">DJM Heating</h1>
-                <p class="text-indigo-300 text-xs">& Refrigeration</p>
-              </div>
+        <aside id="sidebar" class="sidebar w-60 bg-gradient-to-b from-slate-800 to-indigo-900 flex flex-col flex-shrink-0 h-full z-40">
+          <div class="p-4 border-b border-white/10">
+            <div class="bg-white rounded-xl p-2 flex items-center justify-center">
+              <img src="/static/djm-logo.png" alt="DJM" class="h-10 object-contain" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\\'text-indigo-700 font-black text-sm\\'>DJM Heating</span>'">
             </div>
           </div>
           <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -404,7 +466,7 @@ function getHTML(): string {
               \${avatarHtml(state.user.name, state.user.avatarColor)}
               <div class="flex-1 min-w-0">
                 <p class="text-white text-sm font-medium truncate">\${escHtml(state.user.name)}</p>
-                <p class="text-indigo-300 text-xs">Admin</p>
+                <p class="text-indigo-300 text-xs">\${state.user.role === 'OWNER' ? '👑 Owner' : 'Admin'}</p>
               </div>
               <button onclick="logout()" class="text-indigo-300 hover:text-white transition ml-1" title="Logout">
                 <i class="fas fa-sign-out-alt text-sm"></i>
@@ -422,7 +484,7 @@ function getHTML(): string {
                 <i class="fas fa-bars text-xl"></i>
               </button>
               <div>
-                <h2 class="text-lg font-semibold text-gray-800 capitalize">\${state.currentView === 'dashboard' ? 'Dashboard' : state.currentView}</h2>
+                <h2 id="page-title" class="text-lg font-semibold text-gray-800 capitalize">\${viewLabel(state.currentView)}</h2>
                 <p class="text-xs text-gray-500">\${dayjs().format('dddd, MMMM D, YYYY')}</p>
               </div>
             </div>
@@ -452,6 +514,11 @@ function getHTML(): string {
 
     function toggleSidebar() {
       document.getElementById('sidebar')?.classList.toggle('open');
+    }
+
+    function viewLabel(view) {
+      var labels = { dashboard: 'Dashboard', calendar: 'Calendar', jobs: 'Jobs', technicians: 'Technicians', clients: 'Clients', reports: 'Reports', notifications: 'Notifications' };
+      return labels[view] || view;
     }
 
     // =================== ADMIN DASHBOARD ===================
@@ -780,13 +847,20 @@ function getHTML(): string {
     function renderJobsView() {
       const statusFilter = window._jobFilter || 'ALL';
       const filtered = statusFilter === 'ALL' ? state.jobs : state.jobs.filter(j => j.status === statusFilter);
-      const tabs = ['ALL','ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED'];
+      const tabs = [
+        { key: 'ALL',        label: 'All' },
+        { key: 'ASSIGNED',   label: 'Assigned' },
+        { key: 'IN_PROGRESS',label: 'In Progress' },
+        { key: 'COMPLETED',  label: 'Completed' },
+        { key: 'CANCELLED',  label: 'Cancelled' }
+      ];
 
       return \`
       <div class="space-y-4">
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1 flex gap-1 flex-wrap">
-          \${tabs.map(t => \`<button onclick="filterJobs('\${t}')" class="px-4 py-2 rounded-xl text-sm font-medium transition flex-1 min-w-0
-            \${statusFilter === t ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}">\${t === 'ALL' ? 'All Jobs' : t.replace('_',' ')}</button>\`).join('')}
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-1.5" style="overflow-x:auto;">
+          <div style="display:flex;gap:4px;min-width:max-content;">
+            \${tabs.map(t => \`<button onclick="filterJobs('\${t.key}')" style="white-space:nowrap;padding:6px 14px;border-radius:10px;font-size:13px;font-weight:500;border:none;cursor:pointer;background:\${statusFilter===t.key?'#4f46e5':'transparent'};color:\${statusFilter===t.key?'#fff':'#4b5563'};transition:all .15s;">\${t.label}</button>\`).join('')}
+          </div>
         </div>
         <div class="space-y-3">
           \${filtered.length === 0 ? \`
@@ -836,48 +910,94 @@ function getHTML(): string {
     // =================== TECHNICIANS VIEW ===================
     function renderTechniciansView() {
       const techs = state.users.filter(u => u.role === 'TECHNICIAN');
+      const admins = state.users.filter(u => u.role === 'ADMIN' || u.role === 'OWNER');
+      const isOwner = state.user.role === 'OWNER';
       return \`
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-medium text-gray-500">\${techs.length} Technicians</h3>
-          <button onclick="openUserModal()" class="flex items-center gap-2 bg-indigo-600 text-white text-sm px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition">
-            <i class="fas fa-plus"></i> Add Technician
-          </button>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          \${techs.map(t => \`
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 card-hover">
-            <div class="flex items-center gap-3 mb-4">
-              \${avatarHtml(t.name, t.avatar_color, 'w-12 h-12 text-lg')}
-              <div>
-                <h3 class="font-semibold text-gray-800">\${escHtml(t.name)}</h3>
-                <p class="text-sm text-gray-500">\${escHtml(t.specialty||'General')}</p>
-              </div>
-              <div class="ml-auto">
-                <span class="text-xs px-2 py-1 rounded-full font-medium \${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">\${t.is_active ? 'Active' : 'Inactive'}</span>
-              </div>
-            </div>
-            <div class="grid grid-cols-3 gap-3 text-center">
-              <div class="bg-gray-50 rounded-xl p-2.5">
-                <p class="text-xl font-bold text-gray-800">\${t.total_jobs||0}</p>
-                <p class="text-xs text-gray-500">Total</p>
-              </div>
-              <div class="bg-yellow-50 rounded-xl p-2.5">
-                <p class="text-xl font-bold text-yellow-600">\${t.active_jobs||0}</p>
-                <p class="text-xs text-gray-500">Active</p>
-              </div>
-              <div class="bg-green-50 rounded-xl p-2.5">
-                <p class="text-xl font-bold text-green-600">\${t.completed_jobs||0}</p>
-                <p class="text-xs text-gray-500">Done</p>
-              </div>
-            </div>
-            <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm text-gray-500">
-              <i class="fas fa-phone text-xs"></i>
-              <span>\${escHtml(t.phone||'No phone')}</span>
-            </div>
+      <div class="space-y-6">
+        <!-- Technicians -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-gray-500">\${techs.length} Technicians</h3>
+            <button onclick="openUserModal()" class="flex items-center gap-2 bg-indigo-600 text-white text-sm px-4 py-2 rounded-xl font-medium hover:bg-indigo-700 transition">
+              <i class="fas fa-plus"></i> Add Technician
+            </button>
           </div>
-          \`).join('')}
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            \${techs.map(t => \`
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 card-hover">
+              <div class="flex items-start gap-3 mb-4">
+                \${avatarHtml(t.name, t.avatar_color, 'w-12 h-12 text-lg')}
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-semibold text-gray-800 truncate">\${escHtml(t.name)}</h3>
+                  <p class="text-sm text-gray-500">\${escHtml(t.specialty||'General')}</p>
+                  <p class="text-xs text-gray-400 truncate">\${escHtml(t.email||'')}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                  <span class="text-xs px-2 py-1 rounded-full font-medium \${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">\${t.is_active ? 'Active' : 'Inactive'}</span>
+                  <div class="flex gap-1">
+                    <button onclick="openEditTechModal('\${t.id}')" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit">
+                      <i class="fas fa-edit text-xs"></i>
+                    </button>
+                    <button onclick="deleteTech('\${t.id}', '\${escHtml(t.name)}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                      <i class="fas fa-trash-alt text-xs"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="bg-gray-50 rounded-xl p-2.5">
+                  <p class="text-xl font-bold text-gray-800">\${t.total_jobs||0}</p>
+                  <p class="text-xs text-gray-500">Total</p>
+                </div>
+                <div class="bg-yellow-50 rounded-xl p-2.5">
+                  <p class="text-xl font-bold text-yellow-600">\${t.active_jobs||0}</p>
+                  <p class="text-xs text-gray-500">Active</p>
+                </div>
+                <div class="bg-green-50 rounded-xl p-2.5">
+                  <p class="text-xl font-bold text-green-600">\${t.completed_jobs||0}</p>
+                  <p class="text-xs text-gray-500">Done</p>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm text-gray-500">
+                <i class="fas fa-phone text-xs"></i>
+                <span>\${escHtml(t.phone||'No phone')}</span>
+              </div>
+            </div>
+            \`).join('')}
+          </div>
         </div>
+
+        \${isOwner ? \`
+        <!-- Admin/Staff Management (OWNER only) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-medium text-gray-500">Admin Staff (\${admins.length})</h3>
+            <button onclick="openUserModal('ADMIN')" class="flex items-center gap-2 bg-slate-700 text-white text-sm px-4 py-2 rounded-xl font-medium hover:bg-slate-800 transition">
+              <i class="fas fa-plus"></i> Add Admin
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            \${admins.map(a => \`
+            <div class="bg-white rounded-2xl shadow-sm border border-indigo-100 p-4">
+              <div class="flex items-center gap-3">
+                \${avatarHtml(a.name, a.avatar_color, 'w-10 h-10')}
+                <div class="flex-1 min-w-0">
+                  <p class="font-semibold text-gray-800 truncate">\${escHtml(a.name)}</p>
+                  <p class="text-xs text-gray-400 truncate">\${escHtml(a.email||'')}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                  <span class="text-xs px-2 py-1 rounded-full font-medium \${a.role==='OWNER' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'}">\${a.role==='OWNER' ? '👑 Owner' : 'Admin'}</span>
+                  \${a.role !== 'OWNER' ? \`<div class="flex gap-1">
+                    <button onclick="openEditTechModal('\${a.id}')" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"><i class="fas fa-edit text-xs"></i></button>
+                    <button onclick="deleteTech('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><i class="fas fa-trash-alt text-xs"></i></button>
+                  </div>\` : ''}
+                </div>
+              </div>
+            </div>
+            \`).join('')}
+          </div>
+        </div>
+        \` : ''}
       </div>\`;
     }
 
@@ -1714,16 +1834,18 @@ function getHTML(): string {
       });
     }
 
-    // =================== USER MODAL ===================
+    // =================== USER MODAL (Add) ===================
     function renderUserModal() {
       return \`
       <div id="user-modal" class="modal-overlay hidden">
         <div class="modal-content max-w-md fade-in">
           <div class="p-5 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="font-bold text-gray-800 text-lg">Add Technician</h2>
+            <h2 class="font-bold text-gray-800 text-lg" id="user-modal-title">Add Technician</h2>
             <button onclick="closeUserModal()" class="p-2 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition"><i class="fas fa-times"></i></button>
           </div>
           <form id="user-form" class="p-5 space-y-4">
+            <input type="hidden" id="uf-id">
+            <input type="hidden" id="uf-role" value="TECHNICIAN">
             <div class="grid grid-cols-2 gap-3">
               <div class="col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Full Name *</label>
@@ -1732,7 +1854,7 @@ function getHTML(): string {
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Email *</label>
-                <input id="uf-email" type="email" required placeholder="john@djmheating.com"
+                <input id="uf-email" type="email" placeholder="john@djmheating.com"
                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
               <div>
@@ -1740,41 +1862,171 @@ function getHTML(): string {
                 <input id="uf-phone" type="tel" placeholder="555-0100"
                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
-              <div>
+              <div id="uf-specialty-wrap">
                 <label class="block text-sm font-medium text-gray-700 mb-1.5">Specialty</label>
                 <select id="uf-specialty" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                   \${['HVAC','Refrigeration','Electrical','Plumbing','General','Inspection'].map(s => \`<option value="\${s}">\${s}</option>\`).join('')}
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Password *</label>
-                <input id="uf-password" type="password" required placeholder="••••••••"
+                <label class="block text-sm font-medium text-gray-700 mb-1.5" id="uf-pwd-label">Password *</label>
+                <input id="uf-password" type="password" placeholder="••••••••"
                   class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <p id="uf-pwd-hint" class="text-xs text-gray-400 mt-1 hidden">Leave blank to keep current password</p>
+              </div>
+              <div id="uf-active-wrap" class="hidden col-span-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="uf-active" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded">
+                  <span class="text-sm font-medium text-gray-700">Active (can log in)</span>
+                </label>
+              </div>
+              <div id="uf-role-wrap" class="hidden col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+                <select id="uf-role-sel" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="ADMIN">Admin</option>
+                  <option value="TECHNICIAN">Technician</option>
+                </select>
               </div>
             </div>
             <div class="flex gap-3 pt-2">
               <button type="button" onclick="closeUserModal()" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition text-sm">Cancel</button>
-              <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition text-sm">Add Technician</button>
+              <button type="button" id="uf-delete" class="hidden flex-1 py-2.5 border border-red-200 rounded-xl text-red-600 font-medium hover:bg-red-50 transition text-sm"><i class="fas fa-trash-alt mr-1.5"></i>Delete</button>
+              <button type="submit" id="uf-submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition text-sm">Add</button>
             </div>
           </form>
         </div>
       </div>\`;
     }
-    function openUserModal() { document.getElementById('user-modal')?.classList.remove('hidden'); }
+
+    function openUserModal(defaultRole) {
+      var modal = document.getElementById('user-modal');
+      if (!modal) return;
+      // Reset form
+      document.getElementById('uf-id').value = '';
+      document.getElementById('uf-name').value = '';
+      document.getElementById('uf-email').value = '';
+      document.getElementById('uf-phone').value = '';
+      document.getElementById('uf-password').value = '';
+      document.getElementById('uf-email').required = true;
+      document.getElementById('uf-password').required = true;
+      document.getElementById('uf-pwd-hint').classList.add('hidden');
+      document.getElementById('uf-active-wrap').classList.add('hidden');
+      document.getElementById('uf-pwd-label').textContent = 'Password *';
+      var delBtn2 = document.getElementById('uf-delete');
+      if (delBtn2) delBtn2.classList.add('hidden');
+      var role = defaultRole || 'TECHNICIAN';
+      document.getElementById('uf-role').value = role;
+      document.getElementById('user-modal-title').textContent = role === 'ADMIN' ? 'Add Admin Staff' : 'Add Technician';
+      document.getElementById('uf-submit').textContent = role === 'ADMIN' ? 'Add Admin' : 'Add Technician';
+      document.getElementById('uf-specialty-wrap').style.display = role === 'TECHNICIAN' ? '' : 'none';
+      // Role selector only for OWNER creating staff
+      var roleWrap = document.getElementById('uf-role-wrap');
+      if (state.user.role === 'OWNER' && role !== 'TECHNICIAN') {
+        roleWrap.classList.remove('hidden');
+        document.getElementById('uf-role-sel').value = role;
+      } else {
+        roleWrap.classList.add('hidden');
+      }
+      modal.classList.remove('hidden');
+    }
+
     function closeUserModal() { document.getElementById('user-modal')?.classList.add('hidden'); }
+
+    async function openEditTechModal(userId) {
+      var u = state.users.find(function(x){ return x.id === userId; });
+      if (!u) { try { u = await apiCall('get', '/users/' + userId); } catch(e) { return; } }
+      var modal = document.getElementById('user-modal');
+      document.getElementById('uf-id').value = u.id;
+      document.getElementById('uf-name').value = u.name || '';
+      document.getElementById('uf-email').value = u.email || '';
+      document.getElementById('uf-phone').value = u.phone || '';
+      document.getElementById('uf-password').value = '';
+      document.getElementById('uf-password').required = false;
+      document.getElementById('uf-email').required = false;
+      document.getElementById('uf-pwd-hint').classList.remove('hidden');
+      document.getElementById('uf-pwd-label').textContent = 'New Password';
+      document.getElementById('uf-active-wrap').classList.remove('hidden');
+      document.getElementById('uf-active').checked = !!u.is_active;
+      var specialty = document.getElementById('uf-specialty');
+      if (specialty) specialty.value = u.specialty || 'HVAC';
+      document.getElementById('user-modal-title').textContent = 'Edit: ' + escHtml(u.name);
+      document.getElementById('uf-submit').textContent = 'Save Changes';
+      document.getElementById('uf-role').value = u.role;
+      // OWNER can change role for non-owner users
+      var roleWrap = document.getElementById('uf-role-wrap');
+      if (state.user.role === 'OWNER' && u.role !== 'OWNER') {
+        roleWrap.classList.remove('hidden');
+        var roleSel = document.getElementById('uf-role-sel');
+        roleSel.innerHTML = '<option value="ADMIN">Admin</option><option value="TECHNICIAN">Technician</option>';
+        roleSel.value = u.role;
+        document.getElementById('uf-specialty-wrap').style.display = u.role === 'TECHNICIAN' ? '' : 'none';
+        roleSel.onchange = function() {
+          document.getElementById('uf-specialty-wrap').style.display = roleSel.value === 'TECHNICIAN' ? '' : 'none';
+        };
+      } else {
+        roleWrap.classList.add('hidden');
+      }
+      document.getElementById('uf-specialty-wrap').style.display = u.role === 'TECHNICIAN' ? '' : 'none';
+      // Show delete button in edit mode (only for non-OWNER users)
+      var delBtn = document.getElementById('uf-delete');
+      if (delBtn) {
+        if (u.role !== 'OWNER') {
+          delBtn.classList.remove('hidden');
+          delBtn.onclick = function() { closeUserModal(); deleteTech(u.id, u.name); };
+        } else {
+          delBtn.classList.add('hidden');
+        }
+      }
+      modal.classList.remove('hidden');
+    }
+
+    async function deleteTech(userId, name) {
+      if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+      try {
+        await apiCall('delete', '/users/' + userId);
+        showToast(name + ' deleted', 'success');
+        await loadUsers();
+        refreshView();
+      } catch(e) {}
+    }
 
     function bindUserForm() {
       const form = document.getElementById('user-form');
-      if (!form) return;
-      form.addEventListener('submit', async (e) => {
+      if (!form || form._bound) return;
+      form._bound = true;
+      form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        var btn = document.getElementById('uf-submit');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        var id = document.getElementById('uf-id').value;
+        var roleFromSel = document.getElementById('uf-role-sel') && !document.getElementById('uf-role-wrap').classList.contains('hidden')
+          ? document.getElementById('uf-role-sel').value
+          : document.getElementById('uf-role').value;
+        var data = {
+          name:      document.getElementById('uf-name').value,
+          email:     document.getElementById('uf-email').value || undefined,
+          phone:     document.getElementById('uf-phone').value || null,
+          specialty: document.getElementById('uf-specialty').value || null,
+          role:      roleFromSel,
+          isActive:  document.getElementById('uf-active').checked
+        };
+        var pwd = document.getElementById('uf-password').value;
+        if (pwd) data.password = pwd;
         try {
-          await apiCall('post', '/users', { name: document.getElementById('uf-name').value, email: document.getElementById('uf-email').value, phone: document.getElementById('uf-phone').value, specialty: document.getElementById('uf-specialty').value, password: document.getElementById('uf-password').value, role: 'TECHNICIAN' });
-          showToast('Technician added!', 'success');
+          if (id) {
+            await apiCall('put', '/users/' + id, data);
+            showToast('Saved!', 'success');
+          } else {
+            if (!data.email) { showToast('Email is required', 'error'); btn.disabled=false; btn.textContent='Add'; return; }
+            if (!pwd) { showToast('Password is required', 'error'); btn.disabled=false; btn.textContent='Add'; return; }
+            data.password = pwd;
+            await apiCall('post', '/users', data);
+            showToast('Added!', 'success');
+          }
           closeUserModal();
           await loadUsers();
           refreshView();
-        } catch(e) {}
+        } catch(e2) { btn.disabled=false; btn.textContent = id ? 'Save Changes' : 'Add'; }
       });
     }
 
@@ -1793,6 +2045,12 @@ function getHTML(): string {
           const views = { dashboard: renderAdminDashboard, jobs: renderJobsView, calendar: renderCalendar, clients: renderClientsView, technicians: renderTechniciansView, reports: renderReportsView, notifications: renderNotificationsView };
           mainView.innerHTML = (views[state.currentView] || renderAdminDashboard)();
           mainView.classList.remove('fade-in'); void mainView.offsetWidth; mainView.classList.add('fade-in');
+          var titleEl = document.getElementById('page-title');
+          if (titleEl) titleEl.textContent = viewLabel(state.currentView);
+          // Update sidebar active state
+          document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active','text-white','bg-white/20'); el.classList.add('text-indigo-200'); });
+          var activeNav = document.querySelector('.nav-item[data-view="' + state.currentView + '"]');
+          if (activeNav) { activeNav.classList.add('active','text-white','bg-white/20'); activeNav.classList.remove('text-indigo-200'); }
           bindJobForm(); bindClientForm(); bindUserForm();
         } else { renderApp(); bindAdminEvents(); }
       } else {

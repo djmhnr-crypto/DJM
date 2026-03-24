@@ -10,7 +10,7 @@ dashboard.use('*', authMiddleware)
 dashboard.get('/stats', async (c) => {
   const user = c.get('user')
 
-  if (user.role === 'ADMIN') {
+  if (user.role === 'ADMIN' || user.role === 'OWNER') {
     const [jobStats, techStats, todayJobs, weekHours] = await Promise.all([
       c.env.DB.prepare(`
         SELECT
