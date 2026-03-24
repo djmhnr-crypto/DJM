@@ -1,13 +1,14 @@
--- Seed Data for FieldVibe Dispatch App
--- Password for all users is: password123 (bcrypt hash equivalent using SHA-256 for Workers)
+-- Seed Data for DJM Heating and Refrigeration Dispatch App
+-- Password for all users is: password123 (SHA-256 hash)
 
 INSERT OR IGNORE INTO users (id, email, password_hash, name, phone, role, specialty, avatar_color) VALUES
-  ('admin-001', 'admin@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sarah Johnson', '555-0100', 'ADMIN', 'Management', '#8B5CF6'),
-  ('admin-002', 'dispatcher@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Mike Chen', '555-0101', 'ADMIN', 'Dispatch', '#EC4899'),
-  ('tech-001', 'john.smith@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'John Smith', '555-0102', 'TECHNICIAN', 'HVAC', '#3B82F6'),
-  ('tech-002', 'emily.davis@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Emily Davis', '555-0103', 'TECHNICIAN', 'Electrical', '#10B981'),
-  ('tech-003', 'carlos.ruiz@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Carlos Ruiz', '555-0104', 'TECHNICIAN', 'Plumbing', '#F59E0B'),
-  ('tech-004', 'linda.park@fieldvibe.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Linda Park', '555-0105', 'TECHNICIAN', 'HVAC', '#EF4444');
+  ('owner-001', 'djmhnr@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Dale Kim', '403-775-2472', 'OWNER', 'Management', '#06B6D4'),
+  ('admin-001', 'sarah.johnson@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Sarah Johnson', '555-0100', 'ADMIN', 'Management', '#8B5CF6'),
+  ('admin-002', 'mike.chen@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Mike Chen', '555-0101', 'ADMIN', 'Dispatch', '#EC4899'),
+  ('tech-001', 'john.smith@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'John Smith', '555-0102', 'TECHNICIAN', 'HVAC', '#3B82F6'),
+  ('tech-002', 'emily.davis@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Emily Davis', '555-0103', 'TECHNICIAN', 'Electrical', '#10B981'),
+  ('tech-003', 'carlos.ruiz@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Carlos Ruiz', '555-0104', 'TECHNICIAN', 'Plumbing', '#F59E0B'),
+  ('tech-004', 'linda.park@gmail.com', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Linda Park', '555-0105', 'TECHNICIAN', 'HVAC', '#EF4444');
 
 INSERT OR IGNORE INTO clients (id, name, phone, email, address, notes) VALUES
   ('client-001', 'Acme Corporation', '555-1001', 'facilities@acme.com', '123 Business Park Dr, Suite 100', 'Key account - priority service'),
