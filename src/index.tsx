@@ -305,16 +305,25 @@ function getHTML(): string {
             </div>
 
             <form id="login-form">
-              <!-- Technician Mode: Dropdown -->
+              <!-- Technician Mode: Dropdown + Email + Password -->
               <div id="tech-login-section">
                 <div class="mb-4">
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Technician</label>
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Your Name</label>
                   <div class="relative">
                     <i class="fas fa-hard-hat absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10"></i>
-                    <select id="tech-select" class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none">
+                    <select id="tech-select" onchange="onTechSelect(this.value)"
+                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none">
                       <option value="">— Select your name —</option>
                     </select>
                     <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                  </div>
+                </div>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                  <div class="relative">
+                    <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input id="tech-email" type="email" placeholder="your@gmail.com"
+                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 </div>
                 <div class="mb-5">
@@ -387,6 +396,16 @@ function getHTML(): string {
       } catch(e) {}
     }
 
+    function onTechSelect(email) {
+      var emailInput = document.getElementById('tech-email');
+      if (emailInput) {
+        emailInput.value = email;
+        if (email) {
+          setTimeout(function(){ document.getElementById('tech-password').focus(); }, 50);
+        }
+      }
+    }
+
     function bindLoginEvents() {
       loadTechnicianDropdown();
       document.getElementById('login-form').addEventListener('submit', async function(e) {
@@ -398,11 +417,11 @@ function getHTML(): string {
         try {
           var email, password;
           if (_loginMode === 'staff') {
-            email = document.getElementById('tech-select').value;
+            email = document.getElementById('tech-email').value.trim();
             password = document.getElementById('tech-password').value;
-            if (!email) { errEl.textContent = 'Please select your name'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
+            if (!email) { errEl.textContent = 'Please select your name or enter your email'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
           } else {
-            email = document.getElementById('login-email').value;
+            email = document.getElementById('login-email').value.trim();
             password = document.getElementById('login-password').value;
           }
           await login(email, password);
