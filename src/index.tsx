@@ -305,7 +305,7 @@ function getHTML(): string {
             </div>
 
             <form id="login-form">
-              <!-- Technician Mode: Dropdown + Email + Password -->
+              <!-- Technician Mode: Dropdown + Password only -->
               <div id="tech-login-section">
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Select Your Name</label>
@@ -318,14 +318,8 @@ function getHTML(): string {
                     <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                   </div>
                 </div>
-                <div class="mb-4">
-                  <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-                  <div class="relative">
-                    <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                    <input id="tech-email" type="email" placeholder="your@gmail.com"
-                      class="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
-                </div>
+                <!-- hidden email field - auto-filled by dropdown -->
+                <input id="tech-email" type="hidden" />
                 <div class="mb-5">
                   <label class="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
                   <div class="relative">
@@ -400,9 +394,9 @@ function getHTML(): string {
       var emailInput = document.getElementById('tech-email');
       if (emailInput) {
         emailInput.value = email;
-        if (email) {
-          setTimeout(function(){ document.getElementById('tech-password').focus(); }, 50);
-        }
+      }
+      if (email) {
+        setTimeout(function(){ document.getElementById('tech-password').focus(); }, 50);
       }
     }
 
@@ -419,7 +413,7 @@ function getHTML(): string {
           if (_loginMode === 'staff') {
             email = document.getElementById('tech-email').value.trim();
             password = document.getElementById('tech-password').value;
-            if (!email) { errEl.textContent = 'Please select your name or enter your email'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
+            if (!email) { errEl.textContent = 'Please select your name from the dropdown'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
           } else {
             email = document.getElementById('login-email').value.trim();
             password = document.getElementById('login-password').value;
@@ -1006,11 +1000,11 @@ function getHTML(): string {
                 </div>
                 <div class="flex flex-col items-end gap-2">
                   <span class="text-xs px-2 py-1 rounded-full font-medium \${a.role==='OWNER' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'}">\${a.role==='OWNER' ? '👑 Owner' : 'Admin'}</span>
-                  \${a.role !== 'OWNER' ? \`<div class="flex gap-1">
+                  <div class="flex gap-1">
                     <button onclick="openEditTechModal('\${a.id}')" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit"><i class="fas fa-edit text-xs"></i></button>
                     <button onclick="openChangePwdModal('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Change Password"><i class="fas fa-key text-xs"></i></button>
-                    <button onclick="deleteTech('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete"><i class="fas fa-trash-alt text-xs"></i></button>
-                  </div>\` : ''}
+                    \${a.role !== 'OWNER' ? '<button onclick="deleteTech(\\'' + a.id + '\\', \\'' + escHtml(a.name) + '\\')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete"><i class="fas fa-trash-alt text-xs"></i></button>' : ''}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1361,8 +1355,10 @@ function getHTML(): string {
       var weekEnd   = days[6].format('YYYY-MM-DD');
       var todayStr  = dayjs().format('YYYY-MM-DD');
 
-      // 이번 주 내 본인 job만 필터
+      // 이번 주 내 본인 job만 필터 (technicianId가 현재 로그인 유저와 일치하는 것만)
       var myJobs = state.jobs.filter(function(j) {
+        if (j.technicianId !== state.user.id) return false;
+        if (!j.scheduledStart) return false;
         var d = dayjs(j.scheduledStart).format('YYYY-MM-DD');
         return d >= weekStart && d <= weekEnd;
       });
@@ -2107,10 +2103,10 @@ function getHTML(): string {
         roleWrap.classList.add('hidden');
       }
       document.getElementById('uf-specialty-wrap').style.display = u.role === 'TECHNICIAN' ? '' : 'none';
-      // Show delete button in edit mode (only for non-OWNER users)
+      // Show delete button only for non-OWNER users (OWNER cannot be deleted)
       var delBtn = document.getElementById('uf-delete');
       if (delBtn) {
-        if (u.role !== 'OWNER') {
+        if (u.role !== 'OWNER' && state.user.role === 'OWNER') {
           delBtn.classList.remove('hidden');
           delBtn.onclick = function() { closeUserModal(); deleteTech(u.id, u.name); };
         } else {
