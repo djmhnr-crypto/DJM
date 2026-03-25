@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "djm-heating",
   "compatibility_date": "2026-03-13",
   "pages_build_output_dir": "./dist",
   "compatibility_flags": ["nodejs_compat"],
@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "webapp-production",
-      "database_id": "local-only"
+      "database_id": "9f753c46-8b2c-4d06-9a35-359aeb0cd4d0"
     }
   ],
   "vars": {
