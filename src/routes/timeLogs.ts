@@ -114,10 +114,10 @@ timeLogs.get('/', async (c) => {
   return c.json(result.results)
 })
 
-// GET /api/time-logs/summary - Time summary (admin)
+// GET /api/time-logs/summary - Time summary (admin/owner)
 timeLogs.get('/summary', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (user.role !== 'ADMIN' && user.role !== 'OWNER') return c.json({ error: 'Forbidden' }, 403)
 
   const { startDate, endDate } = c.req.query()
   const start = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]

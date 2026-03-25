@@ -8,6 +8,10 @@ type Variables = { user: any }
 const jobs = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 jobs.use('*', authMiddleware)
 
+function isAdmin(user: any) {
+  return user.role === 'OWNER' || user.role === 'ADMIN'
+}
+
 // GET /api/jobs - List jobs
 jobs.get('/', async (c) => {
   const user = c.get('user')
@@ -73,10 +77,10 @@ jobs.get('/:id', async (c) => {
   return c.json({ ...formatJob(job), timeLogs: timeLogs.results })
 })
 
-// POST /api/jobs - Create job (admin only)
+// POST /api/jobs - Create job (admin/owner only)
 jobs.post('/', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (!isAdmin(user)) return c.json({ error: 'Forbidden' }, 403)
 
   const body = await c.req.json()
   const { title, description, locationAddress, clientId, technicianId, scheduledStart, scheduledEnd, color, priority, serviceType, notes } = body
@@ -130,9 +134,9 @@ jobs.put('/:id', async (c) => {
       'UPDATE jobs SET status = ?, actual_start = COALESCE(actual_start, ?), actual_end = ?, updated_at = ? WHERE id = ?'
     ).bind(updates.status, updates.actual_start || existing.actual_start, updates.actual_end || existing.actual_end, now, id).run()
 
-    // Notify admins on completion
+    // Notify admins/owners on completion
     if (status === 'COMPLETED') {
-      const admins = await c.env.DB.prepare("SELECT id FROM users WHERE role = 'ADMIN'").all<any>()
+      const admins = await c.env.DB.prepare("SELECT id FROM users WHERE role IN ('ADMIN','OWNER')").all<any>()
       for (const admin of admins.results) {
         const nid = generateId()
         await c.env.DB.prepare('INSERT INTO notifications (id, user_id, job_id, type, title, message) VALUES (?, ?, ?, ?, ?, ?)')
@@ -171,10 +175,10 @@ jobs.put('/:id', async (c) => {
   return c.json(formatJob(updated!))
 })
 
-// DELETE /api/jobs/:id (admin only)
+// DELETE /api/jobs/:id (admin/owner only)
 jobs.delete('/:id', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (!isAdmin(user)) return c.json({ error: 'Forbidden' }, 403)
   const id = c.req.param('id')
   await c.env.DB.prepare('DELETE FROM jobs WHERE id = ?').bind(id).run()
   return c.json({ success: true })

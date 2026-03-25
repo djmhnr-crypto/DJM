@@ -8,6 +8,10 @@ type Variables = { user: any }
 const clients = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 clients.use('*', authMiddleware)
 
+function isAdmin(user: any) {
+  return user.role === 'OWNER' || user.role === 'ADMIN'
+}
+
 clients.get('/', async (c) => {
   const { search } = c.req.query()
   let query = 'SELECT *, (SELECT COUNT(*) FROM jobs WHERE client_id = clients.id) as job_count FROM clients WHERE 1=1'
@@ -26,7 +30,7 @@ clients.get('/:id', async (c) => {
 
 clients.post('/', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (!isAdmin(user)) return c.json({ error: 'Forbidden' }, 403)
   const { name, phone, email, address, notes } = await c.req.json()
   if (!name) return c.json({ error: 'Name required' }, 400)
   const id = generateId()
@@ -38,7 +42,7 @@ clients.post('/', async (c) => {
 
 clients.put('/:id', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (!isAdmin(user)) return c.json({ error: 'Forbidden' }, 403)
   const id = c.req.param('id')
   const { name, phone, email, address, notes } = await c.req.json()
   await c.env.DB.prepare('UPDATE clients SET name=?, phone=?, email=?, address=?, notes=?, updated_at=? WHERE id=?')
@@ -49,7 +53,7 @@ clients.put('/:id', async (c) => {
 
 clients.delete('/:id', async (c) => {
   const user = c.get('user')
-  if (user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403)
+  if (!isAdmin(user)) return c.json({ error: 'Forbidden' }, 403)
   await c.env.DB.prepare('DELETE FROM clients WHERE id = ?').bind(c.req.param('id')).run()
   return c.json({ success: true })
 })

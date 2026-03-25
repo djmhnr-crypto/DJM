@@ -167,7 +167,7 @@ function getHTML(): string {
         if (isAdminUser()) {
           promises.push(loadJobs(), loadClients(), loadUsers());
         } else {
-          promises.push(loadActiveLog());
+          promises.push(loadJobs(), loadActiveLog());
         }
         await Promise.all(promises);
       } catch(e) { console.error(e); }
@@ -977,9 +977,9 @@ function getHTML(): string {
                   <p class="text-xs text-gray-500">Done</p>
                 </div>
               </div>
-              <div class="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 text-sm text-gray-500">
-                <i class="fas fa-phone text-xs"></i>
-                <span>\${escHtml(t.phone||'No phone')}</span>
+              <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+                <div class="flex items-center gap-2"><i class="fas fa-phone text-xs"></i><span>\${escHtml(t.phone||'No phone')}</span></div>
+                <button onclick="openChangePwdModal('\${t.id}', '\${escHtml(t.name)}')" class="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"><i class="fas fa-key text-xs"></i> Set Password</button>
               </div>
             </div>
             \`).join('')}
@@ -1007,8 +1007,9 @@ function getHTML(): string {
                 <div class="flex flex-col items-end gap-2">
                   <span class="text-xs px-2 py-1 rounded-full font-medium \${a.role==='OWNER' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700'}">\${a.role==='OWNER' ? '👑 Owner' : 'Admin'}</span>
                   \${a.role !== 'OWNER' ? \`<div class="flex gap-1">
-                    <button onclick="openEditTechModal('\${a.id}')" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"><i class="fas fa-edit text-xs"></i></button>
-                    <button onclick="deleteTech('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><i class="fas fa-trash-alt text-xs"></i></button>
+                    <button onclick="openEditTechModal('\${a.id}')" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Edit"><i class="fas fa-edit text-xs"></i></button>
+                    <button onclick="openChangePwdModal('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Change Password"><i class="fas fa-key text-xs"></i></button>
+                    <button onclick="deleteTech('\${a.id}', '\${escHtml(a.name)}')" class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete"><i class="fas fa-trash-alt text-xs"></i></button>
                   </div>\` : ''}
                 </div>
               </div>
@@ -1175,10 +1176,11 @@ function getHTML(): string {
       const tabs = [
         { id: 'dashboard', icon: 'fa-home', label: 'Home' },
         { id: 'myjobs', icon: 'fa-briefcase', label: 'My Jobs' },
+        { id: 'techcalendar', icon: 'fa-calendar-alt', label: 'Calendar' },
         { id: 'notifications', icon: 'fa-bell', label: 'Alerts', badge: state.unreadCount },
         { id: 'profile', icon: 'fa-user', label: 'Profile' }
       ];
-      const views = { dashboard: renderTechDashboard, myjobs: renderTechJobs, notifications: renderNotificationsView, profile: renderTechProfile };
+      const views = { dashboard: renderTechDashboard, myjobs: renderTechJobs, techcalendar: renderTechCalendar, notifications: renderNotificationsView, profile: renderTechProfile };
 
       return \`
       <div class="min-h-screen bg-gray-50 pb-20">
@@ -1215,7 +1217,7 @@ function getHTML(): string {
         </header>
 
         <!-- Page Content -->
-        <main class="px-4 py-4 fade-in" id="tech-main">
+        <main class="\${state.currentView === 'techcalendar' ? 'px-2 py-2' : 'px-4 py-4'} fade-in" id="tech-main">
           \${(views[state.currentView] || renderTechDashboard)()}
         </main>
 
@@ -1345,6 +1347,125 @@ function getHTML(): string {
       </div>\`;
     }
 
+    // =================== TECHNICIAN CALENDAR ===================
+    function renderTechCalendar() {
+      var ROW_H = 60;
+      var HOUR_START = 7;
+      var HOUR_END = 20;
+      var GRID_H = (HOUR_END - HOUR_START) * ROW_H;
+
+      var calDate = dayjs(state.calendarDate);
+      var startOfWeek = calDate.startOf('week');
+      var days = Array.from({length:7}, function(_,i){ return startOfWeek.add(i,'day'); });
+      var weekStart = days[0].format('YYYY-MM-DD');
+      var weekEnd   = days[6].format('YYYY-MM-DD');
+      var todayStr  = dayjs().format('YYYY-MM-DD');
+
+      // 이번 주 내 본인 job만 필터
+      var myJobs = state.jobs.filter(function(j) {
+        var d = dayjs(j.scheduledStart).format('YYYY-MM-DD');
+        return d >= weekStart && d <= weekEnd;
+      });
+
+      // 요일 헤더
+      var gridCols = '48px repeat(7,1fr)';
+      var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var dayHeaders = days.map(function(d) {
+        var isToday = d.format('YYYY-MM-DD') === todayStr;
+        return '<div style="text-align:center;padding:8px 4px;border-left:1px solid #f3f4f6;">'
+          + '<div style="font-size:11px;color:#6b7280;">' + dayNames[d.day()] + '</div>'
+          + '<div style="font-size:16px;font-weight:700;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:2px auto 0;'
+          + (isToday ? 'background:#4f46e5;color:#fff;' : 'color:#111827;') + '">' + d.date() + '</div>'
+          + '</div>';
+      }).join('');
+
+      // 시간 라벨
+      var timeLabels = '';
+      for (var h = HOUR_START; h < HOUR_END; h++) {
+        var top = (h - HOUR_START) * ROW_H;
+        var label = h < 12 ? h + ' AM' : (h === 12 ? '12 PM' : (h-12) + ' PM');
+        timeLabels += '<div style="position:absolute;top:' + top + 'px;left:0;right:0;padding-right:4px;text-align:right;">'
+          + '<span style="font-size:10px;color:#9ca3af;line-height:1;">' + label + '</span></div>';
+      }
+
+      // 날짜 컬럼
+      var dayCols = days.map(function(day) {
+        var dayStr = day.format('YYYY-MM-DD');
+        var isToday = dayStr === todayStr;
+
+        // 구분선
+        var hLines = '';
+        for (var h = 0; h < (HOUR_END - HOUR_START); h++) {
+          hLines += '<div style="position:absolute;left:0;right:0;top:' + (h * ROW_H) + 'px;border-top:1px solid ' + (h === 0 ? '#e5e7eb' : '#f3f4f6') + ';"></div>';
+          hLines += '<div style="position:absolute;left:0;right:0;top:' + (h * ROW_H + ROW_H/2) + 'px;border-top:1px dotted #f3f4f6;"></div>';
+        }
+
+        // 이 날의 job
+        var dayJobs = myJobs.filter(function(j){ return dayjs(j.scheduledStart).format('YYYY-MM-DD') === dayStr; });
+        dayJobs.sort(function(a,b){ return dayjs(a.scheduledStart).valueOf() - dayjs(b.scheduledStart).valueOf(); });
+
+        var jobBlocks = dayJobs.map(function(j) {
+          var jStart = dayjs(j.scheduledStart);
+          var jEnd   = dayjs(j.scheduledEnd);
+          var startMin = Math.max(jStart.hour()*60 + jStart.minute(), HOUR_START*60);
+          var endMin   = Math.min(jEnd.hour()*60   + jEnd.minute(),   HOUR_END*60);
+          if (endMin <= startMin) return '';
+          var topPx  = ((startMin - HOUR_START*60) / 60) * ROW_H;
+          var heightPx = Math.max(((endMin - startMin) / 60) * ROW_H - 2, 18);
+          var timeRange = formatTime(j.scheduledStart) + '-' + formatTime(j.scheduledEnd);
+          var statusColor = j.status === 'COMPLETED' ? '#10b981' : j.status === 'IN_PROGRESS' ? '#f59e0b' : (j.color || '#4f46e5');
+          return '<div onclick="viewJob(' + "'" + j.id + "'" + ')" style="position:absolute;left:2px;right:2px;top:' + topPx.toFixed(1) + 'px;height:' + heightPx.toFixed(1) + 'px;'
+            + 'background:' + statusColor + ';border-radius:6px;cursor:pointer;overflow:hidden;padding:2px 4px;z-index:2;'
+            + 'box-shadow:0 1px 3px rgba(0,0,0,0.15);">'
+            + '<div style="font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(j.title) + '</div>'
+            + (heightPx > 28 ? '<div style="font-size:9px;color:rgba(255,255,255,0.85);">' + timeRange + '</div>' : '')
+            + '</div>';
+        }).join('');
+
+        return '<div style="position:relative;min-width:0;border-left:1px solid #f3f4f6;height:' + GRID_H + 'px;'
+          + (isToday ? 'background:rgba(79,70,229,0.025);' : '') + '">'
+          + hLines + jobBlocks + '</div>';
+      }).join('');
+
+      // 현재 시각 선
+      var nowLine = '';
+      var nowMin = dayjs().hour()*60 + dayjs().minute();
+      if (nowMin >= HOUR_START*60 && nowMin < HOUR_END*60 && todayStr >= weekStart && todayStr <= weekEnd) {
+        var nowTop = ((nowMin - HOUR_START*60)/60)*ROW_H;
+        nowLine = '<div style="position:absolute;left:0;right:0;top:' + nowTop.toFixed(1) + 'px;border-top:2px solid #ef4444;z-index:4;pointer-events:none;">'
+          + '<div style="position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:#ef4444;"></div></div>';
+      }
+
+      return '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f3f4f6;">'
+        +   '<div style="display:flex;align-items:center;gap:4px;">'
+        +     '<button onclick="techChangeWeek(-1)" style="padding:6px 8px;background:none;border:none;cursor:pointer;color:#4b5563;"><i class="fas fa-chevron-left"></i></button>'
+        +     '<span style="font-weight:600;font-size:13px;color:#111827;">' + days[0].format('MMM D') + ' – ' + days[6].format('MMM D, YYYY') + '</span>'
+        +     '<button onclick="techChangeWeek(1)" style="padding:6px 8px;background:none;border:none;cursor:pointer;color:#4b5563;"><i class="fas fa-chevron-right"></i></button>'
+        +   '</div>'
+        +   '<button onclick="techGoToday()" style="padding:4px 10px;font-size:11px;font-weight:600;color:#4f46e5;border:1px solid #c7d2fe;border-radius:8px;background:#fff;cursor:pointer;">Today</button>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:' + gridCols + ';border-bottom:1px solid #e5e7eb;">'
+        +   '<div></div>' + dayHeaders
+        + '</div>'
+        + '<div style="overflow-y:auto;max-height:calc(100vh - 260px);">'
+        +   '<div style="display:grid;grid-template-columns:' + gridCols + ';">'
+        +     '<div style="position:relative;height:' + GRID_H + 'px;border-right:1px solid #e5e7eb;">' + timeLabels + '</div>'
+        +     '<div style="position:relative;grid-column:2/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));">'
+        +       (nowLine ? '<div style="position:absolute;left:0;right:0;top:0;height:' + GRID_H + 'px;pointer-events:none;z-index:4;">' + nowLine + '</div>' : '')
+        +       dayCols
+        +     '</div>'
+        +   '</div>'
+        + '</div>'
+        + '</div>';
+    }
+
+    function techChangeWeek(dir) {
+      state.calendarDate = dayjs(state.calendarDate).add(dir*7,'day').toDate();
+      refreshView();
+    }
+    function techGoToday() { state.calendarDate = new Date(); refreshView(); }
+
     // =================== JOB DETAIL MODAL ===================
     async function viewJob(id) {
       try {
@@ -1357,7 +1478,7 @@ function getHTML(): string {
       const existing = document.getElementById('job-detail-modal');
       if (existing) existing.remove();
 
-      const canEdit = state.user.role === 'ADMIN';
+      const canEdit = isAdminUser();
       const isMyJob = job.technicianId === state.user.id;
       const canClockIn = isMyJob && !state.activeLog && ['ASSIGNED','IN_PROGRESS'].includes(job.status);
       const isActiveJob = state.activeLog?.job_id === job.id;
@@ -2009,6 +2130,85 @@ function getHTML(): string {
       } catch(e) {}
     }
 
+    // ── Change Password Modal ──────────────────────────────────────────────
+    function openChangePwdModal(userId, userName) {
+      // Remove any existing modal
+      var existing = document.getElementById('change-pwd-modal');
+      if (existing) existing.remove();
+
+      var overlay = document.createElement('div');
+      overlay.id = 'change-pwd-modal';
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = \`
+        <div class="modal-content fade-in" style="max-width:400px">
+          <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 class="font-bold text-gray-800">Set Password</h2>
+              <p class="text-sm text-gray-500 mt-0.5">\${escHtml(userName)}</p>
+            </div>
+            <button onclick="document.getElementById('change-pwd-modal').remove()" class="p-2 text-gray-400 hover:text-gray-600 rounded-xl">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="p-5 space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">New Password *</label>
+              <input id="cpwd-new" type="password" placeholder="Enter new password"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+              <p class="text-xs text-gray-400 mt-1">Technician will use this password to log in</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password *</label>
+              <input id="cpwd-confirm" type="password" placeholder="Re-enter new password"
+                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+            <p id="cpwd-error" class="text-sm text-red-600 hidden"></p>
+            <div class="flex gap-3 pt-2">
+              <button type="button" onclick="document.getElementById('change-pwd-modal').remove()"
+                class="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-medium hover:bg-gray-50 transition text-sm">Cancel</button>
+              <button type="button" id="cpwd-submit"
+                onclick="submitChangePwd('\${userId}')"
+                class="flex-1 bg-amber-500 text-white py-2.5 rounded-xl font-semibold hover:bg-amber-600 transition text-sm">
+                <i class="fas fa-key mr-1.5"></i>Save Password
+              </button>
+            </div>
+          </div>
+        </div>
+      \`;
+      document.body.appendChild(overlay);
+      // Focus new password field
+      setTimeout(function(){ var el = document.getElementById('cpwd-new'); if(el) el.focus(); }, 100);
+      // Allow Enter key to submit
+      overlay.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') submitChangePwd(userId);
+      });
+    }
+
+    async function submitChangePwd(userId) {
+      var newPwd    = (document.getElementById('cpwd-new')?.value || '').trim();
+      var confirm   = (document.getElementById('cpwd-confirm')?.value || '').trim();
+      var errEl     = document.getElementById('cpwd-error');
+      var submitBtn = document.getElementById('cpwd-submit');
+
+      if (!newPwd) { errEl.textContent = 'Please enter a new password.'; errEl.classList.remove('hidden'); return; }
+      if (newPwd.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; errEl.classList.remove('hidden'); return; }
+      if (newPwd !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.classList.remove('hidden'); return; }
+
+      errEl.classList.add('hidden');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
+
+      try {
+        await apiCall('put', '/users/' + userId, { password: newPwd });
+        document.getElementById('change-pwd-modal')?.remove();
+        showToast('Password updated successfully!', 'success');
+      } catch(e) {
+        errEl.textContent = 'Failed to update password. Please try again.';
+        errEl.classList.remove('hidden');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save Password'; }
+      }
+    }
+    // ── End Change Password Modal ──────────────────────────────────────────
+
     function bindUserForm() {
       const form = document.getElementById('user-form');
       if (!form || form._bound) return;
@@ -2053,12 +2253,17 @@ function getHTML(): string {
     function navigate(view) {
       state.currentView = view;
       document.getElementById('sidebar')?.classList.remove('open');
-      refreshView();
+      // 테크니션이 캘린더 탭으로 이동 시 최신 jobs 로드
+      if (view === 'techcalendar' && !isAdminUser()) {
+        loadJobs().then(refreshView);
+      } else {
+        refreshView();
+      }
     }
 
     function refreshView() {
       if (!state.user) { renderApp(); return; }
-      if (state.user.role === 'ADMIN') {
+      if (isAdminUser()) {
         const mainView = document.getElementById('main-view');
         if (mainView) {
           const views = { dashboard: renderAdminDashboard, jobs: renderJobsView, calendar: renderCalendar, clients: renderClientsView, technicians: renderTechniciansView, reports: renderReportsView, notifications: renderNotificationsView };
@@ -2075,13 +2280,15 @@ function getHTML(): string {
       } else {
         const techMain = document.getElementById('tech-main');
         if (techMain) {
-          const views = { dashboard: renderTechDashboard, myjobs: renderTechJobs, notifications: renderNotificationsView, profile: renderTechProfile };
+          const views = { dashboard: renderTechDashboard, myjobs: renderTechJobs, techcalendar: renderTechCalendar, notifications: renderNotificationsView, profile: renderTechProfile };
+          techMain.className = (state.currentView === 'techcalendar' ? 'px-2 py-2' : 'px-4 py-4') + ' fade-in';
           techMain.innerHTML = (views[state.currentView] || renderTechDashboard)();
           techMain.classList.remove('fade-in'); void techMain.offsetWidth; techMain.classList.add('fade-in');
           if (state.activeLog) updateTimerDisplay();
         } else { renderApp(); bindTechEvents(); }
       }
     }
+
 
     function bindAdminEvents() {
       bindJobForm(); bindClientForm(); bindUserForm();

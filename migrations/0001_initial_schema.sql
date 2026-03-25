@@ -1,13 +1,13 @@
 -- FieldVibe Technician Dispatch Application - Initial Schema
 
--- Users Table
+-- Users Table (role supports OWNER, ADMIN, TECHNICIAN)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL,
   phone TEXT,
-  role TEXT NOT NULL DEFAULT 'TECHNICIAN' CHECK(role IN ('ADMIN', 'TECHNICIAN')),
+  role TEXT NOT NULL DEFAULT 'TECHNICIAN',
   specialty TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   avatar_color TEXT DEFAULT '#3B82F6',
@@ -40,9 +40,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   scheduled_end DATETIME NOT NULL,
   actual_start DATETIME,
   actual_end DATETIME,
-  status TEXT NOT NULL DEFAULT 'ASSIGNED' CHECK(status IN ('ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED')),
+  status TEXT NOT NULL DEFAULT 'ASSIGNED',
   color TEXT DEFAULT '#3B82F6',
-  priority TEXT DEFAULT 'NORMAL' CHECK(priority IN ('LOW','NORMAL','HIGH','URGENT')),
+  priority TEXT DEFAULT 'NORMAL',
   service_type TEXT,
   notes TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
