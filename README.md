@@ -2,142 +2,191 @@
 
 A professional web-based technician dispatch management system built with Hono + Cloudflare Pages + D1 SQLite.
 
-## 🚀 Live Application
+## Project Overview
+- **Name**: FieldVibe
+- **Goal**: Manage technician dispatching, scheduling, time tracking, and admin/owner operations in a single lightweight edge app.
+- **Current Status**: Running in sandbox and locally verified after auth/login bug fix.
 
-- **URL**: https://3000-ijo6yail9m0850vvc7yio-5634da27.sandbox.novita.ai
+## URLs
+- **Sandbox URL**: https://3000-ijo6yail9m0850vvc7yio-5634da27.sandbox.novita.ai
 - **Health Check**: `/api/health`
+- **Local Dev**: `http://localhost:3000`
 
-## 🔐 Demo Accounts
+## User Guide
+### Admin / Owner
+- Sign in with email + password.
+- Use **Dashboard** to view KPIs and team activity.
+- Use **Calendar** to manage weekly schedules.
+- Use **Jobs** to create, edit, assign, cancel, or review work orders.
+- Use **Technicians** to add staff, edit profiles, change passwords, activate/deactivate accounts, and review productivity stats.
+- Owners can also manage admin staff roles.
 
+### Technician
+- Sign in using the technician dropdown + password.
+- Review assigned jobs from **Home**, **My Jobs**, or **Calendar**.
+- Clock in/out from assigned jobs and track live work time.
+- Open job detail to review customer info and navigation links.
+
+## Completed Features
+### Admin Interface
+- Dashboard with KPI cards, daily schedule, team activity, and recent updates
+- Weekly calendar with visual schedule blocks and week navigation
+- Jobs CRUD with status filtering and detail modal
+- Technician management with add/edit/delete and password reset
+- Owner-only admin/staff role management
+- Client CRUD management
+- Reports with weekly time summaries and job status overview
+- Notifications center with unread tracking and mark-as-read actions
+
+### Technician Interface
+- Mobile-first dashboard and bottom navigation
+- Technician login dropdown flow
+- Personal jobs list and calendar view
+- Clock in / clock out workflow with GPS support
+- Job detail modal with client info and directions link
+- Profile screen with stats and sign out
+
+### Authentication & Role Rules
+- JWT-based authentication
+- Roles: `OWNER`, `ADMIN`, `TECHNICIAN`
+- Owner/admin can manage technician credentials
+- Owner can manage role changes for non-owner users
+- Fixed issue where owner-side technician password updates could break technician login when email was not safely preserved
+- User edit flow now preserves email safely and backend ignores blank email updates
+
+## Functional Entry URIs
+### Web Pages
+- `/` - SPA entry point
+
+### Authentication
+- `POST /api/auth/login` - Login with `{ email, password }`
+- `POST /api/auth/register` - Register user
+- `GET /api/auth/me` - Current authenticated user
+- `GET /api/auth/technicians-public` - Public technician list for dropdown login
+
+### Users
+- `GET /api/users` - List users (admin/owner)
+- `GET /api/users/:id` - Get user detail
+- `POST /api/users` - Create user
+- `PUT /api/users/:id` - Update user info, password, active state, role restrictions apply
+- `DELETE /api/users/:id` - Delete user with owner/admin restrictions
+- `GET /api/users/technicians` - Active technician list
+
+### Jobs
+- `GET /api/jobs`
+- `GET /api/jobs/:id`
+- `POST /api/jobs`
+- `PUT /api/jobs/:id`
+- `DELETE /api/jobs/:id`
+
+### Clients
+- `GET /api/clients`
+- `GET /api/clients/:id`
+- `POST /api/clients`
+- `PUT /api/clients/:id`
+- `DELETE /api/clients/:id`
+
+### Time Logs
+- `POST /api/time-logs/clock-in`
+- `POST /api/time-logs/clock-out`
+- `GET /api/time-logs/active`
+- `GET /api/time-logs/summary`
+
+### Notifications
+- `GET /api/notifications`
+- `GET /api/notifications/unread-count`
+- `PUT /api/notifications/:id/read`
+- `PUT /api/notifications/mark-all-read`
+
+### Dashboard
+- `GET /api/dashboard/stats`
+
+## Data Architecture
+### Data Models
+- **Users**: identity, role, specialty, phone, avatar color, active status, password hash
+- **Clients**: business contact information, address, notes
+- **Jobs**: assignment, scheduling, color tag, priority, status, service type, description
+- **Time Logs**: technician work sessions with GPS coordinates and duration
+- **Notifications**: per-user alert feed and unread state
+
+### Storage Services
+- **Database**: Cloudflare D1 (SQLite)
+- **Auth Storage**: JWT in browser localStorage
+
+### Data Flow
+- Frontend SPA calls Hono API routes under `/api/*`
+- Hono routes read/write D1 data
+- Authenticated requests use Bearer token
+- Technician login dropdown consumes `/api/auth/technicians-public`
+
+## Demo Accounts
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@fieldvibe.com | password123 |
-| Admin | dispatcher@fieldvibe.com | password123 |
-| Technician | john.smith@fieldvibe.com | password123 |
-| Technician | emily.davis@fieldvibe.com | password123 |
-| Technician | carlos.ruiz@fieldvibe.com | password123 |
-| Technician | linda.park@fieldvibe.com | password123 |
+| Owner | djmhnr@gmail.com | password123 |
+| Admin | mike.chen@gmail.com | password123 |
+| Admin | sarah.johnson@gmail.com | password123 |
+| Technician | john.smith@gmail.com | password123 |
+| Technician | emily.davis@gmail.com | password123 |
+| Technician | carlos.ruiz@gmail.com | password123 |
+| Technician | linda.park@gmail.com | password123 |
 
-## ✅ Completed Features
+## Not Yet Implemented
+- Formal automated test suite
+- Password change audit/history logging
+- Email-based password reset flow
+- Granular permission matrix beyond current role checks
+- Production-tailwind build optimization instead of CDN warning
+- Full deployment metadata for GitHub and Cloudflare production URLs
 
-### Admin Interface
-- **Dashboard** - KPI cards, today's schedule, field team status, recent activity
-- **Weekly Calendar** - Time grid view with color-coded jobs, week navigation
-- **Jobs Management** - Create/edit/cancel jobs with full filtering by status
-- **Technician Management** - View all techs, performance stats, add new technicians
-- **Client Management** - Full CRUD for client records
-- **Reports** - Weekly time summary with progress bars, job status breakdown
-- **Notifications** - Real-time notification center with mark-as-read
-- **New Job Modal** - Full form with client/tech assignment, color tags, priority
+## Recommended Next Steps
+1. Add automated API/auth regression tests for owner/admin/technician flows.
+2. Add explicit frontend validation/messages around technician email and password changes.
+3. Add audit logging for credential changes and role updates.
+4. Push latest fix to GitHub and deploy to Cloudflare Pages production.
+5. Replace Tailwind CDN usage with build-time Tailwind pipeline for production.
 
-### Technician Interface (Mobile-First)
-- **Home Dashboard** - Today's jobs, weekly stats, active timer
-- **My Jobs List** - All assigned/in-progress jobs
-- **Clock In/Out** - GPS-enabled time tracking with live timer
-- **Job Detail** - Full job info, client contact, directions link
-- **Profile** - Stats and sign out
-- **Bottom Navigation** - Mobile-friendly tab bar
-
-### Backend API (Hono + D1)
-- `POST /api/auth/login` - Login with JWT response
-- `POST /api/auth/register` - Register new user
-- `GET /api/auth/me` - Get current user
-- `GET/POST/PUT/DELETE /api/jobs` - Full job CRUD
-- `POST /api/time-logs/clock-in` - Clock in with GPS
-- `POST /api/time-logs/clock-out` - Clock out with notes
-- `GET /api/time-logs/active` - Current active session
-- `GET /api/time-logs/summary` - Weekly time summary
-- `GET/POST/PUT/DELETE /api/clients` - Client management
-- `GET/POST/PUT /api/users` - User management
-- `GET /api/users/technicians` - Active technician list
-- `GET /api/notifications` - User notifications
-- `PUT /api/notifications/:id/read` - Mark notification read
-- `GET /api/dashboard/stats` - Role-based dashboard stats
-
-## 🗃️ Data Models
-
-- **Users** - Admins & Technicians with roles, specialty, avatar colors
-- **Clients** - Company contacts with address/notes
-- **Jobs** - Full job lifecycle (ASSIGNED → IN_PROGRESS → COMPLETED)
-- **Time Logs** - Clock in/out with GPS coordinates and duration
-- **Notifications** - System notifications per user with read status
-
-## 🛠️ Tech Stack
-
+## Tech Stack
 - **Backend**: Hono v4 (TypeScript) on Cloudflare Workers
 - **Frontend**: Vanilla JS + Tailwind CSS (CDN) + Day.js + Axios
 - **Database**: Cloudflare D1 (SQLite)
-- **Auth**: JWT (jose library) + SHA-256 password hashing
-- **Build**: Vite + @hono/vite-build
+- **Auth**: JWT (`jose`) + SHA-256 password hashing
+- **Build**: Vite + `@hono/vite-build`
 - **Dev Server**: Wrangler Pages Dev + PM2
 
-## 📁 Project Structure
-
-```
+## Project Structure
+```text
 webapp/
 ├── src/
-│   ├── index.tsx          # Main app + HTML frontend (SPA)
-│   ├── middleware/
-│   │   └── auth.ts        # JWT auth middleware
-│   ├── lib/
-│   │   └── auth.ts        # JWT/hash utilities
+│   ├── index.tsx
+│   ├── middleware/auth.ts
+│   ├── lib/auth.ts
 │   └── routes/
-│       ├── auth.ts        # Login/register/me
-│       ├── jobs.ts        # Job CRUD
-│       ├── timeLogs.ts    # Clock in/out
-│       ├── clients.ts     # Client CRUD
-│       ├── users.ts       # User management
+│       ├── auth.ts
+│       ├── jobs.ts
+│       ├── timeLogs.ts
+│       ├── clients.ts
+│       ├── users.ts
 │       ├── notifications.ts
-│       └── dashboard.ts   # Stats & analytics
+│       └── dashboard.ts
 ├── migrations/
-│   └── 0001_initial_schema.sql
-├── seed.sql               # Demo data
-├── wrangler.jsonc         # Cloudflare config
-├── ecosystem.config.cjs   # PM2 config
-└── package.json
+├── public/
+├── ecosystem.config.cjs
+├── wrangler.jsonc
+├── package.json
+└── README.md
 ```
 
-## 🚀 Local Development
-
+## Local Development
 ```bash
-# Install dependencies
 npm install
-
-# Apply database migrations
 npm run db:migrate:local
-
-# Seed demo data
 npm run db:seed
-
-# Build
 npm run build
-
-# Start dev server (PM2)
 pm2 start ecosystem.config.cjs
-
-# Reset database
-npm run db:reset
-```
-
-## 🌍 Deployment to Cloudflare Pages
-
-```bash
-# Setup Cloudflare auth
-npx wrangler login
-
-# Create D1 database
-npx wrangler d1 create webapp-production
-
-# Update wrangler.jsonc with real database_id
-
-# Apply migrations to production
-npm run db:migrate:prod
-
-# Deploy
-npm run deploy
 ```
 
 ## Deployment Status
-- **Platform**: Cloudflare Pages
-- **Status**: ✅ Running in sandbox
-- **Last Updated**: 2026-03-13
+- **Platform**: Cloudflare Pages / Workers-compatible build
+- **Sandbox Status**: ✅ Running
+- **Auth Fix Status**: ✅ Applied and locally verified
+- **Last Updated**: 2026-03-25
