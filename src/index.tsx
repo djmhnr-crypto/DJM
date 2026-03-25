@@ -414,9 +414,12 @@ function getHTML(): string {
             email = document.getElementById('tech-email').value.trim();
             password = document.getElementById('tech-password').value;
             if (!email) { errEl.textContent = 'Please select your name from the dropdown'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
+            if (!password) { errEl.textContent = 'Please enter your password'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
           } else {
             email = document.getElementById('login-email').value.trim();
             password = document.getElementById('login-password').value;
+            if (!email) { errEl.textContent = 'Please enter your email'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
+            if (!password) { errEl.textContent = 'Please enter your password'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Sign In'; return; }
           }
           await login(email, password);
         } catch(err) {
@@ -2181,8 +2184,8 @@ function getHTML(): string {
     }
 
     async function submitChangePwd(userId) {
-      var newPwd    = (document.getElementById('cpwd-new')?.value || '').trim();
-      var confirm   = (document.getElementById('cpwd-confirm')?.value || '').trim();
+      var newPwd    = document.getElementById('cpwd-new')?.value || '';
+      var confirm   = document.getElementById('cpwd-confirm')?.value || '';
       var errEl     = document.getElementById('cpwd-error');
       var submitBtn = document.getElementById('cpwd-submit');
 

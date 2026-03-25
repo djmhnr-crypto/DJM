@@ -14,13 +14,16 @@ auth.get('/technicians-public', async (c) => {
 })
 
 auth.post('/login', async (c) => {
-  const { email, password } = await c.req.json()
+  let body: any = {}
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid request body' }, 400) }
+  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+  const password = typeof body.password === 'string' ? body.password : ''
   if (!email || !password) return c.json({ error: 'Email and password required' }, 400)
 
   const hashed = await hashPassword(password)
   const user = await c.env.DB.prepare(
     'SELECT id, email, name, role, phone, specialty, avatar_color, is_active FROM users WHERE email = ? AND password_hash = ?'
-  ).bind(email.toLowerCase(), hashed).first<any>()
+  ).bind(email, hashed).first<any>()
 
   if (!user) return c.json({ error: 'Invalid credentials' }, 401)
   if (!user.is_active) return c.json({ error: 'Account deactivated' }, 403)

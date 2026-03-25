@@ -99,13 +99,16 @@ users.put('/:id', async (c) => {
   const target = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<any>()
   if (!target) return c.json({ error: 'User not found' }, 404)
 
-  const body = await c.req.json()
-  const { name, phone, specialty, isActive, avatarColor, email, password, role } = body
-  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined
+  let body: any = {}
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid request body' }, 400) }
+  const { name, phone, specialty, isActive, avatarColor, password, role } = body
+  // email: only update if a non-empty string is explicitly provided
+  const rawEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : undefined
+  const normalizedEmail = rawEmail && rawEmail.length > 0 ? rawEmail : undefined
 
   // TECHNICIAN cannot change their own password or email
   if (user.role === 'TECHNICIAN') {
-    if (password || email || role) return c.json({ error: 'Technicians cannot change credentials or role' }, 403)
+    if (password || body.email !== undefined || role) return c.json({ error: 'Technicians cannot change credentials or role' }, 403)
   }
 
   // Only OWNER can change role; cannot promote to OWNER via ADMIN
@@ -118,16 +121,16 @@ users.put('/:id', async (c) => {
   // Build update
   let setParts = ['name=?', 'phone=?', 'specialty=?', 'is_active=?', 'avatar_color=?', 'updated_at=?']
   let params: any[] = [
-    name ?? target.name,
-    phone ?? target.phone,
-    specialty ?? target.specialty,
+    name !== undefined && name !== null ? name : target.name,
+    phone !== undefined ? phone : target.phone,
+    specialty !== undefined ? specialty : target.specialty,
     isActive !== undefined ? (isActive ? 1 : 0) : target.is_active,
-    avatarColor ?? target.avatar_color,
+    avatarColor !== undefined && avatarColor !== null ? avatarColor : target.avatar_color,
     new Date().toISOString()
   ]
 
   if (normalizedEmail && isAdmin(user)) {
-    // Check email not taken
+    // Check email not taken by another user
     const emailCheck = await c.env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(normalizedEmail, id).first()
     if (emailCheck) return c.json({ error: 'Email already in use' }, 409)
     setParts.push('email=?')
@@ -135,7 +138,9 @@ users.put('/:id', async (c) => {
   }
 
   if (password && isAdmin(user)) {
-    const hashed = await hashPassword(password)
+    const trimmedPassword = typeof password === 'string' ? password : ''
+    if (!trimmedPassword) return c.json({ error: 'Password cannot be empty' }, 400)
+    const hashed = await hashPassword(trimmedPassword)
     setParts.push('password_hash=?')
     params.push(hashed)
   }
