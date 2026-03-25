@@ -2078,7 +2078,7 @@ function getHTML(): string {
       document.getElementById('uf-phone').value = u.phone || '';
       document.getElementById('uf-password').value = '';
       document.getElementById('uf-password').required = false;
-      document.getElementById('uf-email').required = false;
+      document.getElementById('uf-email').required = true;
       document.getElementById('uf-pwd-hint').classList.remove('hidden');
       document.getElementById('uf-pwd-label').textContent = 'New Password';
       document.getElementById('uf-active-wrap').classList.remove('hidden');
@@ -2217,9 +2217,10 @@ function getHTML(): string {
         var roleFromSel = document.getElementById('uf-role-sel') && !document.getElementById('uf-role-wrap').classList.contains('hidden')
           ? document.getElementById('uf-role-sel').value
           : document.getElementById('uf-role').value;
+        var rawEmail = (document.getElementById('uf-email').value || '').trim();
         var data = {
           name:      document.getElementById('uf-name').value,
-          email:     document.getElementById('uf-email').value || undefined,
+          email:     rawEmail,
           phone:     document.getElementById('uf-phone').value || null,
           specialty: document.getElementById('uf-specialty').value || null,
           role:      roleFromSel,
@@ -2229,6 +2230,7 @@ function getHTML(): string {
         if (pwd) data.password = pwd;
         try {
           if (id) {
+            if (!data.email) { showToast('Email is required', 'error'); btn.disabled=false; btn.textContent='Save Changes'; return; }
             await apiCall('put', '/users/' + id, data);
             showToast('Saved!', 'success');
           } else {

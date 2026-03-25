@@ -101,6 +101,7 @@ users.put('/:id', async (c) => {
 
   const body = await c.req.json()
   const { name, phone, specialty, isActive, avatarColor, email, password, role } = body
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : undefined
 
   // TECHNICIAN cannot change their own password or email
   if (user.role === 'TECHNICIAN') {
@@ -125,12 +126,12 @@ users.put('/:id', async (c) => {
     new Date().toISOString()
   ]
 
-  if (email && isAdmin(user)) {
+  if (normalizedEmail && isAdmin(user)) {
     // Check email not taken
-    const emailCheck = await c.env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(email.toLowerCase(), id).first()
+    const emailCheck = await c.env.DB.prepare('SELECT id FROM users WHERE email = ? AND id != ?').bind(normalizedEmail, id).first()
     if (emailCheck) return c.json({ error: 'Email already in use' }, 409)
     setParts.push('email=?')
-    params.push(email.toLowerCase())
+    params.push(normalizedEmail)
   }
 
   if (password && isAdmin(user)) {
